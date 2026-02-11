@@ -33,15 +33,21 @@ jobs:
       - name: Verify extension discovery
         run: |
           cd /tmp/test-project
-          output=$(echo '{"type":"get_commands"}' | timeout 30 pi --mode rpc --no-session 2>/dev/null || true)
+          # Spawn pi in RPC mode, send get_commands
+          # Use a dummy API key so pi doesn't exit early looking for a provider
+          output=$(echo '{"type":"get_commands"}' | timeout 30 ANTHROPIC_API_KEY=sk-test pi --mode rpc --no-session 2>/tmp/pi-stderr || true)
 
+          echo "--- stderr ---"
+          cat /tmp/pi-stderr || true
+          echo "--- stdout ---"
+          echo "$output" | head -5
+
+          # Check that all three deep-dive commands are registered
           for cmd in deep-dive deep-dive-resume deep-dive-stop; do
             if echo "$output" | grep -q "\"name\":\"$cmd\""; then
               echo "✓ /$cmd registered"
             else
               echo "✗ /$cmd NOT found"
-              echo "Output was:"
-              echo "$output" | head -20
               exit 1
             fi
           done
