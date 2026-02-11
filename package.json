@@ -1,0 +1,15 @@
+{
+  "name": "boring",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pi extensions and skills that are boring but good",
+  "keywords": ["pi-package"],
+  "license": "Apache-2.0",
+  "pi": {
+    "extensions": ["pi-extensions"]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  }
+}
