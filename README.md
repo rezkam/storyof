@@ -18,7 +18,7 @@ That's it. All extensions are available immediately.
 
 | Extension | Description |
 |-----------|-------------|
-| [deep-dive](pi-extensions/deep-dive/) | Interactive codebase architecture explorer — generates rich HTML docs with mermaid diagrams, code walkthroughs, and a live chat sidebar |
+| [deep-dive](pi-extensions/deep-dive/) | Run `/deep-dive` in any project and an agent reads your codebase, generates a rich HTML architecture doc with mermaid diagrams, then stays around as a chat partner you can ask questions about the code. |
 
 ### Skills
 
