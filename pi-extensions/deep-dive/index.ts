@@ -797,8 +797,7 @@ function startServer(): Promise<number> {
 // Selection bridge for "Ask about this"
 document.addEventListener("mouseup",function(){var s=window.getSelection();var t=s&&s.toString().trim();if(!t||t.length<5){parent.postMessage({type:"dd-sel-clear"},"*");return;}var r=s.getRangeAt(0).getBoundingClientRect();parent.postMessage({type:"dd-sel",text:t,rect:{left:r.left,top:r.top,width:r.width,height:r.height}},"*");});
 document.addEventListener("mousedown",function(){parent.postMessage({type:"dd-sel-clear"},"*");});
-// Block wheel/scroll on mermaid containers
-document.addEventListener("wheel",function(e){if(e.target.closest&&e.target.closest(".mermaid-wrap,[class*=mermaid]")){e.preventDefault();e.stopPropagation();}},{passive:false,capture:true});
+// Mermaid containers: allow normal page scroll, don't intercept wheel events
 // Syntax highlight code blocks
 document.addEventListener("DOMContentLoaded",function(){if(typeof hljs!=="undefined"){hljs.highlightAll();}});
 if(document.readyState==="complete"||document.readyState==="interactive"){if(typeof hljs!=="undefined"){hljs.highlightAll();}}
@@ -824,7 +823,8 @@ nav a, [class*="nav"] a, header a[href^="#"] {
 }
 /* Make content responsive */
 pre, code { overflow-x: auto; max-width: 100%; }
-img, svg, .mermaid-wrap, [class*="mermaid"] { max-width: 100%; overflow: hidden; }
+img, svg { max-width: 100%; overflow: hidden; }
+.mermaid-wrap, [class*="mermaid"] { max-width: 100%; }
 table { display: block; overflow-x: auto; max-width: 100%; }
 body { overflow-x: hidden; }
 </style>\n</head>`);
