@@ -599,8 +599,7 @@ function handleEvent(data) {
       restoring = false;
       // Save restored history so it survives page refresh
       for (const m of msgs) pushChatLog(m.role === 'user' ? 'u' : 'a', m.text);
-      addSystemMsg('✅ Document ready - ask questions in the chat');
-      docReady = true;
+      addSystemMsg('💬 Chat history restored');
       scrollTL();
     }
     return;

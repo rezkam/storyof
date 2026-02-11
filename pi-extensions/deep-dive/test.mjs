@@ -106,6 +106,42 @@ test("responsive CSS does not break mermaid interaction", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
+console.log("\n── Chat history & state signals ──");
+// ═══════════════════════════════════════════════════════════════════
+
+test("get_messages only sent for resumed sessions", () => {
+  // The get_messages request must be gated on isResumedSession
+  assert(src.includes("S.isResumedSession") && src.includes("get_messages"),
+    "get_messages should be gated on isResumedSession flag");
+});
+
+test("get_messages has one-shot guard (chatHistoryRequested)", () => {
+  // Must not fire on every health probe — needs a flag to prevent repeats
+  assert(src.includes("S.chatHistoryRequested"), "Missing chatHistoryRequested one-shot guard");
+  const gatedBlock = src.slice(
+    src.indexOf("isResumedSession"),
+    src.indexOf("get_messages", src.indexOf("isResumedSession")) + 20
+  );
+  assert(gatedBlock.includes("chatHistoryRequested"), "get_messages not guarded by chatHistoryRequested");
+});
+
+test("fresh session resets resume flags", () => {
+  // When /deep-dive starts fresh, isResumedSession must be false
+  assert(src.includes("S.isResumedSession = false"), "Fresh session must set isResumedSession = false");
+});
+
+test("resume session sets isResumedSession = true", () => {
+  assert(src.includes("S.isResumedSession = true"), "Resume handler must set isResumedSession = true");
+});
+
+test("stopAgent resets resume and chatHistory flags", () => {
+  // stopAgent must clear both flags to prevent stale state across sessions
+  const stopBlock = src.slice(src.indexOf("function stopAll") - 500, src.indexOf("function stopAll"));
+  assert(stopBlock.includes("S.isResumedSession = false"), "stopAgent must reset isResumedSession");
+  assert(stopBlock.includes("S.chatHistoryRequested = false"), "stopAgent must reset chatHistoryRequested");
+});
+
+// ═══════════════════════════════════════════════════════════════════
 console.log("\n── Sanitization ──");
 // ═══════════════════════════════════════════════════════════════════
 
@@ -209,6 +245,17 @@ console.log("\n── UI (ui.html) ──");
 
 test("ui.html has chat_history handler", () => {
   assert(ui.includes("chat_history"), "Missing chat_history event handler in ui.html");
+});
+
+test("chat_history does not claim 'Document ready'", () => {
+  // chat_history just restores old messages — it must not say the doc is ready
+  // because the doc may still be generating. Only doc_ready should trigger that.
+  const chatHistoryBlock = ui.slice(
+    ui.indexOf("data.type === 'chat_history'"),
+    ui.indexOf("return;", ui.indexOf("data.type === 'chat_history'")) + 10
+  );
+  assert(!chatHistoryBlock.includes("Document ready"), "chat_history handler says 'Document ready' — only doc_ready should");
+  assert(!chatHistoryBlock.includes("docReady = true"), "chat_history handler sets docReady — only doc_ready event should");
 });
 
 test("ui.html has chat persistence via sessionStorage", () => {

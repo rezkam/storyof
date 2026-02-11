@@ -64,6 +64,8 @@ const S = {
 	maxCrashRestarts: 3,
 	lastInitialPrompt: null as string | null,
 	pendingInitialPrompt: null as string | null,
+	isResumedSession: false,
+	chatHistoryRequested: false,
 	intentionalStop: false,
 	// Activity tracking
 	lastActivityTs: 0,
@@ -528,8 +530,9 @@ function handleRpcLine(line: string) {
 			S.pendingInitialPrompt = null;
 			agentLog(`Sending initial prompt (agent ready)`);
 			S.proc.stdin.write(JSON.stringify({ type: "prompt", message: prompt }) + "\n");
-		} else if (!S.pendingInitialPrompt && S.proc?.stdin?.writable) {
-			// No initial prompt means this is a resume — request chat history
+		} else if (S.isResumedSession && !S.chatHistoryRequested && S.proc?.stdin?.writable) {
+			// Resume session: request chat history exactly once
+			S.chatHistoryRequested = true;
 			agentLog("Requesting chat history from agent (resume)");
 			S.proc.stdin.write(JSON.stringify({ type: "get_messages" }) + "\n");
 		}
@@ -926,6 +929,8 @@ function stopAgent() {
 	}
 	S.agentReady = false;
 	S.pendingInitialPrompt = null;
+	S.isResumedSession = false;
+	S.chatHistoryRequested = false;
 	S.buffer = "";
 	S.validationInProgress = false;
 	S.validationAttempt = 0;
@@ -1156,6 +1161,7 @@ export default function (pi: ExtensionAPI) {
 
 			const sessionId = crypto.randomBytes(4).toString("hex");
 			S.cwd = ctx.cwd; S.targetPath = targetPath; S.sessionId = sessionId; S.scope = scope; S.focus = prompt; S.depth = depth; S.model = model; S.htmlPath = null; S.sessionFile = null; S.crashCount = 0;
+			S.isResumedSession = false; S.chatHistoryRequested = false;
 
 			// Create session directory
 			fs.mkdirSync(path.join(targetPath, ".pi", "deep-dive", sessionId), { recursive: true });
@@ -1219,6 +1225,8 @@ export default function (pi: ExtensionAPI) {
 
 			try {
 				const port = await startServer();
+				S.isResumedSession = true;
+				S.chatHistoryRequested = false;
 				S.proc = spawnAgent(meta.targetPath, undefined, meta.sessionFile);
 				const url = `http://localhost:${port}/`;
 				const details: Record<string, string> = { url, token: S.secret, model: S.model, target: meta.targetPath, depth: S.depth };

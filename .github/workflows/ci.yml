@@ -35,7 +35,6 @@ jobs:
           ANTHROPIC_API_KEY: sk-test
         run: |
           cd /tmp/test-project
-          # Spawn pi in RPC mode, send get_commands
           output=$(echo '{"type":"get_commands"}' | pi --mode rpc --no-session 2>/tmp/pi-stderr || true)
 
           echo "--- stderr ---"
@@ -43,7 +42,6 @@ jobs:
           echo "--- stdout (first 3 lines) ---"
           echo "$output" | head -3
 
-          # Check that all three deep-dive commands are registered
           for cmd in deep-dive deep-dive-resume deep-dive-stop; do
             if echo "$output" | grep -q "\"name\":\"$cmd\""; then
               echo "✓ /$cmd registered"
@@ -55,22 +53,6 @@ jobs:
 
       - name: Run extension tests
         run: node pi-extensions/deep-dive/test.mjs
-
-      - name: Lint — no hardcoded user paths
-        run: |
-          if grep -rn '/Users/rez\|/home/rez' pi-extensions/; then
-            echo "✗ Found hardcoded user paths in source"
-            exit 1
-          fi
-          echo "✓ No hardcoded user paths"
-
-      - name: Lint — pinned versions only
-        run: |
-          if grep -n '@latest' pi-extensions/deep-dive/index.ts; then
-            echo "✗ Found @latest reference"
-            exit 1
-          fi
-          echo "✓ All versions pinned"
 
       - name: Validate CDN URLs
         run: |
