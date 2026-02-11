@@ -590,6 +590,21 @@ function handleEvent(data) {
     }
     return;
   }
+  if (data.type === 'chat_history') {
+    const msgs = data.messages || [];
+    if (msgs.length > 0) {
+      clearEmpty();
+      restoring = true;
+      for (const m of msgs) addBubble(m.role, m.text);
+      restoring = false;
+      // Save restored history so it survives page refresh
+      for (const m of msgs) pushChatLog(m.role === 'user' ? 'u' : 'a', m.text);
+      addSystemMsg('✅ Document ready - ask questions in the chat');
+      docReady = true;
+      scrollTL();
+    }
+    return;
+  }
   if (data.type === 'doc_ready') { docReady = true; clearEmpty(); refreshDoc(); addSystemMsg('📄 Document written — validating…'); return; }
   if (data.type === 'agent_exit') {
     finishStream(); finishThinking(); finishAllRunning(); cleanOrphanedStreaming();
