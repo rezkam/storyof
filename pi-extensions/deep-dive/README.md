@@ -1,10 +1,6 @@
 # Deep Dive
 
-You join a new project. There's no architecture doc. The README says "see the code." You spend half a day clicking through files trying to understand how anything connects to anything.
-
-Deep Dive fixes that. It spawns an AI agent that reads your entire codebase, builds a mental model of the architecture, and writes it up as a rich HTML document — with mermaid diagrams, module breakdowns, data flow explanations, and real code walkthroughs. You watch it happen live in your browser.
-
-But the document is just the starting point. Once the agent has explored the codebase, it **stays around as a knowledgeable colleague**. The chat sidebar lets you ask follow-up questions, dig into specifics, or ask it to explain something differently. The agent already has context from reading the actual source — so the conversation is grounded in what's really in the code, not hallucinated guesses.
+Run `/deep-dive` in any project and an agent reads your codebase, generates a rich HTML architecture doc with mermaid diagrams, then stays around as a chat partner you can ask questions about the code.
 
 ![Deep Dive — architecture document with mermaid diagrams on the left, interactive chat on the right](assets/screenshot.png)
 
