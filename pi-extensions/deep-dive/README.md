@@ -47,16 +47,6 @@ That's it. A browser tab opens with a split-panel UI. The agent starts reading y
 - **Mermaid validation** — every diagram is validated with `mermaid-cli`; broken diagrams get sent back to the agent to fix automatically (up to 3 cycles)
 - **Session persistence** — stop and come back later with `/deep-dive-resume`
 
-### Status Indicators
-
-| Status | Meaning |
-|--------|---------|
-| 🟢 **Live** | Agent is running and responsive |
-| 🟡 **Thinking…** | Agent is processing a response |
-| 🟡 **Unresponsive** | Agent isn't responding to health probes |
-| 🔴 **Crashed** | Agent exited unexpectedly (auto-restarting) |
-| ⚪ **Ended** | Session stopped intentionally |
-
 ## Usage
 
 ```
