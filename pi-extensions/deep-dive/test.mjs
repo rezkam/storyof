@@ -282,33 +282,6 @@ test("ui.html pins highlight.js version", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-console.log("\n── Tab completion ──");
-// ═══════════════════════════════════════════════════════════════════
-
-test("flag names and flag values are completed separately", () => {
-  assert(src.includes("flagValues") || src.includes("flag_values"),
-    "Missing flag value definitions — need separate flag name vs flag value completion");
-  assert(src.includes('lastToken.startsWith("-")') || src.includes('lastToken.startsWith("--")'),
-    "Missing flag name detection — need to detect when completing a flag vs a value");
-});
-
-test("returns null for non-flag tokens (file completion fallback)", () => {
-  assert(src.includes("return null"),
-    "Must return null for non-flag tokens so pi falls through to file completion");
-});
-
-test("values are for last token only (pi prepends preceding text)", () => {
-  // Extension should NOT prepend argBefore — pi's getSuggestions does that.
-  // Values should be simple: "--depth", "shallow", "claude-sonnet-4-5", etc.
-  const completionBlock = src.slice(
-    src.indexOf("getArgumentCompletions"),
-    src.indexOf("handler: async")
-  );
-  assert(!completionBlock.includes("beforeLastToken"),
-    "Extension should not prepend preceding text — pi handles reconstruction");
-});
-
-// ═══════════════════════════════════════════════════════════════════
 console.log("\n── No hardcoded paths ──");
 // ═══════════════════════════════════════════════════════════════════
 

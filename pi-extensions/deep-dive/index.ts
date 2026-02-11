@@ -1075,53 +1075,16 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerCommand("deep-dive", {
 		description: "Explore a codebase (or a specific topic) and generate architecture docs",
-		getArgumentCompletions: (argText: string) => {
-			// argText is the full argument text (e.g. "topic --depth dee").
-			// Return values for the last token only — pi prepends the preceding text.
-			const flagValues: Record<string, Array<{ value: string; label: string; description: string }>> = {
-				"--depth": [
-					{ value: "shallow", label: "shallow", description: "Quick overview (faster)" },
-					{ value: "medium", label: "medium", description: "Standard depth (default)" },
-					{ value: "deep", label: "deep", description: "Comprehensive analysis" },
-				],
-				"--model": [
-					{ value: "claude-sonnet-4-5", label: "claude-sonnet-4-5", description: "Sonnet 4.5 (default)" },
-					{ value: "claude-opus-4-6", label: "claude-opus-4-6", description: "Opus 4.6 (slow, expensive)" },
-					{ value: "gpt-5.2-codex", label: "gpt-5.2-codex", description: "GPT 5.2 Codex" },
-				],
-			};
-			const flags = [
-				{ value: "--depth", label: "--depth", description: "Exploration depth (shallow/medium/deep)" },
-				{ value: "--path", label: "--path", description: "Subdirectory to focus on (can repeat)" },
-				{ value: "--model", label: "--model", description: "Model to use" },
-				{ value: "--help", label: "--help", description: "Show usage examples" },
-			];
-
-			const tokens = argText.split(/\s+/);
-			const lastToken = tokens[tokens.length - 1] || "";
-			const prevToken = tokens.length >= 2 ? tokens[tokens.length - 2] : "";
-
-			// Previous token is a flag that takes values: complete the value
-			if (prevToken in flagValues) {
-				const vals = flagValues[prevToken];
-				// If the token already matches a value exactly, show all options so the user can swap
-				const isExact = vals.some(v => v.value === lastToken);
-				if (isExact || !lastToken) return vals;
-				const filtered = vals.filter(v => v.value.startsWith(lastToken));
-				return filtered.length > 0 ? filtered : null;
-			}
-
-			// Last token starts with -: complete flag names
-			if (lastToken.startsWith("-")) {
-				const isExact = flags.some(f => f.value === lastToken);
-				if (isExact) return flags;
-				const filtered = flags.filter(f => f.value.startsWith(lastToken));
-				return filtered.length > 0 ? filtered : null;
-			}
-
-			// No match: return null so pi falls through to file completion
-			return null;
-		},
+		getArgumentCompletions: (prefix: string) => [
+			{ value: "--depth shallow", label: "--depth shallow", description: "Quick overview (faster)" },
+			{ value: "--depth medium", label: "--depth medium", description: "Standard depth (default)" },
+			{ value: "--depth deep", label: "--depth deep", description: "Comprehensive analysis" },
+			{ value: "--path", label: "--path <subdir>", description: "Subdirectory or file to focus on (can repeat)" },
+			{ value: "--model claude-sonnet-4-5", label: "--model claude-sonnet-4-5", description: "Sonnet 4.5 (default)" },
+			{ value: "--model claude-opus-4-6", label: "--model claude-opus-4-6", description: "Opus 4.6 (slow, expensive)" },
+			{ value: "--model gpt-5.2-codex", label: "--model gpt-5.2-codex", description: "GPT 5.2 Codex" },
+			{ value: "--help", label: "--help", description: "Show usage examples" },
+		].filter(i => !prefix || i.value.startsWith(prefix)),
 		handler: async (args, ctx) => {
 			const parts = parseArgs(args ?? "");
 
