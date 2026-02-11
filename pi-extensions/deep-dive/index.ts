@@ -494,6 +494,30 @@ function handleRpcLine(line: string) {
 		// Fall through to forward the event to browser
 	}
 
+	// Chat history response — extract user/assistant text and forward to browser
+	if (type === "response" && event.command === "get_messages" && event.success) {
+		const messages = event.data?.messages || [];
+		const chatHistory: Array<{ role: string; text: string }> = [];
+		for (const msg of messages) {
+			const role = msg.role;
+			if (role !== "user" && role !== "assistant") continue;
+			const content = msg.content || [];
+			const textParts = (Array.isArray(content) ? content : [content])
+				.filter((c: any) => c.type === "text")
+				.map((c: any) => c.text);
+			const text = textParts.join("\n").trim();
+			if (!text) continue;
+			// Skip system-generated messages: initial exploration prompt and mermaid fix prompts
+			if (role === "user" && (text.startsWith("You are a codebase architect") || text.includes("mermaid diagram error"))) continue;
+			chatHistory.push({ role, text });
+		}
+		if (chatHistory.length > 0) {
+			agentLog(`Sending chat history to browser: ${chatHistory.length} messages`);
+			wsBroadcast({ type: "chat_history", messages: chatHistory });
+		}
+		return;
+	}
+
 	// Track session file + health probe response + deliver pending prompt
 	if (type === "response" && event.command === "get_state") {
 		S.agentReady = true;
@@ -504,6 +528,10 @@ function handleRpcLine(line: string) {
 			S.pendingInitialPrompt = null;
 			agentLog(`Sending initial prompt (agent ready)`);
 			S.proc.stdin.write(JSON.stringify({ type: "prompt", message: prompt }) + "\n");
+		} else if (!S.pendingInitialPrompt && S.proc?.stdin?.writable) {
+			// No initial prompt means this is a resume — request chat history
+			agentLog("Requesting chat history from agent (resume)");
+			S.proc.stdin.write(JSON.stringify({ type: "get_messages" }) + "\n");
 		}
 		// Health probe came back — agent is responsive
 		if (S.healthProbePending) {
