@@ -1104,12 +1104,17 @@ export default function (pi: ExtensionAPI) {
 			// Previous token is a flag that takes values: complete the value
 			if (prevToken in flagValues) {
 				const vals = flagValues[prevToken];
-				const filtered = vals.filter(v => !lastToken || v.value.startsWith(lastToken));
+				// If the token already matches a value exactly, show all options so the user can swap
+				const isExact = vals.some(v => v.value === lastToken);
+				if (isExact || !lastToken) return vals;
+				const filtered = vals.filter(v => v.value.startsWith(lastToken));
 				return filtered.length > 0 ? filtered : null;
 			}
 
 			// Last token starts with -: complete flag names
 			if (lastToken.startsWith("-")) {
+				const isExact = flags.some(f => f.value === lastToken);
+				if (isExact) return flags;
 				const filtered = flags.filter(f => f.value.startsWith(lastToken));
 				return filtered.length > 0 ? filtered : null;
 			}
