@@ -31,16 +31,17 @@ jobs:
           pi install -l "https://github.com/${{ github.repository }}@${{ github.sha }}"
 
       - name: Verify extension discovery
+        env:
+          ANTHROPIC_API_KEY: sk-test
         run: |
           cd /tmp/test-project
           # Spawn pi in RPC mode, send get_commands
-          # Use a dummy API key so pi doesn't exit early looking for a provider
-          output=$(echo '{"type":"get_commands"}' | timeout 30 ANTHROPIC_API_KEY=sk-test pi --mode rpc --no-session 2>/tmp/pi-stderr || true)
+          output=$(echo '{"type":"get_commands"}' | pi --mode rpc --no-session 2>/tmp/pi-stderr || true)
 
           echo "--- stderr ---"
           cat /tmp/pi-stderr || true
-          echo "--- stdout ---"
-          echo "$output" | head -5
+          echo "--- stdout (first 3 lines) ---"
+          echo "$output" | head -3
 
           # Check that all three deep-dive commands are registered
           for cmd in deep-dive deep-dive-resume deep-dive-stop; do
