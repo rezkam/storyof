@@ -53,6 +53,9 @@ jobs:
             fi
           done
 
+      - name: Run extension tests
+        run: node pi-extensions/deep-dive/test.mjs
+
       - name: Lint — no hardcoded user paths
         run: |
           if grep -rn '/Users/rez\|/home/rez' pi-extensions/; then
