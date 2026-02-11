@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Dive</title>
+<!-- Pinned Tailwind CDN version — dev tool served by embedded HTTP server, not a production site -->
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: { mono: ['JetBrains Mono', 'monospace'], sans: ['Inter', 'system-ui', 'sans-serif'], heading: ['Space Grotesk', 'sans-serif'] },
+      colors: { accent: '#4ade80' },
+    }
+  }
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  /* Animations */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes blink { 50% { opacity:0; } }
+  @keyframes pulse2 { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  @keyframes shimmer { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
+  .animate-fade { animation: fadeUp .15s ease; }
+  .animate-spin2 { animation: spin .6s linear infinite; }
+  .animate-blink { animation: blink 1s step-end infinite; }
+  .animate-pulse2 { animation: pulse2 1.5s infinite; }
+  .shimmer {
+    background: linear-gradient(90deg, #64748b, #94a3b8, #64748b);
+    background-size: 200% 100%; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  /* Chat sidebar — collapse width smoothly */
+  #panelChat { transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1), border-color .3s; overflow: hidden; }
+  .chat-closed #panelChat { width: 0 !important; min-width: 0 !important; border-color: transparent; }
+  .chat-closed #resizeHandle { display: none; }
+
+  /* Resize handle */
+  #resizeHandle { cursor: col-resize; }
+  #resizeHandle:hover, #resizeHandle.active { background: rgba(74, 222, 128, 0.15); }
+  #resizeHandle:hover .resize-dots, #resizeHandle.active .resize-dots { background: #4ade80; }
+  body.resizing { cursor: col-resize !important; user-select: none !important; }
+  body.resizing iframe { pointer-events: none !important; }
+
+  /* Selection popup */
+  .sel-popup { display: none; }
+  .sel-popup.show { display: flex; }
+
+  /* Context bar */
+  .context-bar { display: none; }
+  .context-bar.show { display: flex; }
+
+  /* Working indicator */
+  .working { display: none; }
+  .working.show { display: flex; }
+
+  /* Input disabled */
+  .input-bar.disabled textarea { opacity: 0.3; pointer-events: none; }
+  .input-bar.disabled button { opacity: 0.2; pointer-events: none; }
+
+  /* Tool card body */
+  .tc-body { display: none; }
+  .tc.open .tc-body { display: flex; }
+
+  /* Stop button visibility */
+  .stop-btn { display: none; }
+  .stop-btn.visible { display: flex; }
+
+  /* Thinking content */
+  .thinking-content { display: none; }
+
+  /* Scrollbar styling — global dark theme */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  * { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+  .slim-scroll::-webkit-scrollbar { width: 5px; }
+  .slim-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  .slim-scroll { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+
+  /* Markdown in messages — One Dark Pro palette */
+  .msg-md code { background: rgba(40,44,52,0.6); padding: 1px 5px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: #d19a66; }
+  .msg-md pre { background: #282c34; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; border: 1px solid #3e4451; position: relative; }
+  .msg-md pre code { padding: 0; background: none; color: #abb2bf; display: block; line-height: 1.5; font-size: 12px; }
+  .msg-md strong { color: #e5c07b; font-weight: 600; }
+  .msg-md em { color: #c678dd; font-style: italic; }
+  .msg-md ul, .msg-md ol { padding-left: 20px; margin: 4px 0; }
+  .msg-md li { margin: 2px 0; }
+  .msg-md p { margin: 4px 0; }
+  .msg-md p:first-child { margin-top: 0; }
+  .msg-md p:last-child { margin-bottom: 0; }
+  .msg-md h1,.msg-md h2,.msg-md h3 { font-family: 'Space Grotesk', sans-serif; color: #61afef; margin: 8px 0 4px; }
+  .msg-md h1 { font-size: 16px; } .msg-md h2 { font-size: 14px; } .msg-md h3 { font-size: 13px; }
+  .msg-md a { color: #61afef; text-decoration: underline; }
+  .msg-md blockquote { border-left: 3px solid #3e4451; padding-left: 12px; color: #7f848e; margin: 8px 0; }
+  .msg-md hr { border: none; border-top: 1px solid #3e4451; margin: 12px 0; }
+  .msg-md del { opacity: 0.5; text-decoration: line-through; }
+  .msg-md table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12px; }
+  .msg-md th { background: #282c34; color: #61afef; font-weight: 600; text-align: left; padding: 6px 10px; border: 1px solid #3e4451; }
+  .msg-md td { padding: 5px 10px; border: 1px solid #3e4451; color: #abb2bf; }
+  .msg-md tr:nth-child(even) td { background: rgba(40,44,52,0.3); }
+
+  @media (max-width: 720px) {
+    #panels { flex-direction: column !important; }
+    #panelDoc { min-width: 0 !important; height: 40vh !important; flex: none !important; }
+    #resizeHandle { display: none !important; }
+    #panelChat { width: 100% !important; max-width: 100% !important; }
+    #chatToggleBtn { display: none !important; }
+  }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden">
+
+<!-- ═══ Top bar ═══ -->
+<div class="h-11 bg-slate-900 border-b border-slate-800 flex items-center px-4 gap-3 shrink-0">
+  <div class="font-heading font-bold text-[15px]">π <span class="text-emerald-400">Deep Dive</span></div>
+  <div class="flex-1"></div>
+  <div class="flex gap-2 items-center">
+    <button onclick="refreshDoc()" class="px-2.5 py-1 text-[11px] font-sans bg-slate-800 border border-slate-700 rounded-md text-slate-400 hover:text-emerald-400 hover:border-emerald-400/40 transition-all">↻ Doc</button>
+    <div class="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono bg-slate-800 border border-slate-700 rounded-md text-slate-400" id="sessionPill">
+      <span class="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0 transition-all" id="pillDot"></span>
+      <span id="pillText">connecting…</span>
+    </div>
+    <button onclick="onSessionPillClick()" id="stopBtn2" title="End session" class="stop-btn items-center justify-center w-7 h-7 rounded-md bg-slate-800 border border-slate-700 text-slate-500 hover:text-rose-400 hover:border-rose-400/40 hover:bg-rose-400/5 transition-all cursor-pointer">
+      <svg viewBox="0 0 24 24" class="w-3 h-3 fill-current"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+    <div class="w-px h-5 bg-slate-700"></div>
+    <button onclick="toggleChat()" id="chatToggleBtn" title="Toggle chat (⌘B)" class="hidden relative w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-emerald-400 hover:border-emerald-400/40 transition-all">
+      <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11 9 8 12 11 15"/>
+      </svg>
+      <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900 hidden" id="toggleBadge"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══ Panels ═══ -->
+<div class="flex flex-1 min-h-0 relative" id="panels">
+  <!-- Doc -->
+  <div class="flex-1 min-w-[200px] relative" id="panelDoc">
+    <iframe id="docFrame" src="about:blank" sandbox="allow-same-origin allow-scripts" referrerpolicy="no-referrer" class="w-full h-full border-none bg-slate-950"></iframe>
+  </div>
+
+  <!-- Resize handle -->
+  <div class="w-[6px] bg-slate-800/60 shrink-0 relative z-10 flex items-center justify-center transition-colors" id="resizeHandle">
+    <div class="flex flex-col gap-[3px] py-2">
+      <div class="w-[3px] h-[3px] rounded-full bg-slate-600 resize-dots transition-colors"></div>
+      <div class="w-[3px] h-[3px] rounded-full bg-slate-600 resize-dots transition-colors"></div>
+      <div class="w-[3px] h-[3px] rounded-full bg-slate-600 resize-dots transition-colors"></div>
+    </div>
+  </div>
+
+  <!-- Chat panel -->
+  <div class="flex flex-col bg-slate-950 border-l border-slate-800 relative" id="panelChat" style="width:480px; min-width:280px; max-width:70vw;">
+    <!-- Sidebar header -->
+    <div class="h-10 flex items-center gap-2 px-3 border-b border-slate-800 shrink-0 bg-slate-900/50">
+      <button onclick="toggleChat()" id="sidebarToggle" class="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-emerald-400 hover:bg-slate-800 transition-all shrink-0" title="Collapse sidebar (⌘B)">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="13 9 16 12 13 15"/>
+        </svg>
+      </button>
+      <span class="text-xs font-medium text-slate-400 tracking-wide uppercase">Deep Chat</span>
+    </div>
+    <!-- Timeline -->
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 slim-scroll" id="timeline">
+      <div class="flex-1 flex items-center justify-center text-slate-500 text-[13px] text-center p-8 leading-relaxed" id="emptyState">
+        The agent is exploring the codebase.<br>Ask questions here once it's ready — or anytime.
+      </div>
+    </div>
+
+    <!-- Jump to bottom -->
+    <button id="jumpBottom" onclick="jumpToBottom()" class="hidden absolute left-1/2 -translate-x-1/2 bottom-[120px] z-20 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-400 hover:text-emerald-400 hover:border-emerald-400/40 transition-all shadow-lg cursor-pointer">
+      ↓ New messages
+    </button>
+    <!-- Working indicator -->
+    <div class="working items-center gap-2.5 px-4 py-2 border-t border-slate-800 bg-slate-900/80 shrink-0" id="working">
+      <div class="w-3.5 h-3.5 border-2 border-slate-700 border-t-amber-400 rounded-full animate-spin2 shrink-0"></div>
+      <span class="text-xs font-mono text-slate-400 truncate" id="workingText"></span>
+      <span class="text-[11px] font-mono text-slate-500 shrink-0 ml-auto" id="workingElapsed"></span>
+    </div>
+
+    <!-- Context bar -->
+    <div class="context-bar items-center gap-2 px-3 py-1.5 border-t border-slate-800 shrink-0" id="contextBar">
+      <div class="flex-1 flex items-center gap-1.5 min-w-0 bg-emerald-400/5 border border-emerald-400/15 rounded-md px-2 py-1 text-[11px] font-mono text-emerald-400">
+        <span class="shrink-0">📎</span>
+        <span class="truncate text-slate-400" id="ctxText"></span>
+        <span class="shrink-0 text-slate-500" id="ctxLines"></span>
+      </div>
+      <button onclick="clearContext()" class="text-slate-500 hover:text-rose-400 text-sm px-1 transition-colors" title="Remove selection">✕</button>
+    </div>
+
+    <!-- Input bar -->
+    <div class="input-bar flex gap-2 items-end p-3 border-t border-slate-800 shrink-0">
+      <textarea id="input" placeholder="Ask about the architecture…" rows="1"
+        class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 font-sans text-[13px] leading-relaxed resize-none min-h-[38px] max-h-[120px] outline-none focus:border-emerald-400/50 transition-colors placeholder:text-slate-500"></textarea>
+      <button class="w-[38px] h-[38px] rounded-lg bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center shrink-0 transition-all border-none cursor-pointer" id="sendBtn" onclick="onSendClick()">
+        <svg id="sendIcon" viewBox="0 0 24 24" class="w-4 h-4 fill-slate-950"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        <svg id="stopIcon" viewBox="0 0 24 24" class="w-4 h-4 fill-slate-950 hidden"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Auth screen -->
+<div id="authScreen" class="fixed inset-0 z-[300] bg-slate-950 flex items-center justify-center">
+  <div class="w-full max-w-sm mx-4">
+    <div class="text-center mb-8">
+      <div class="font-heading font-bold text-2xl mb-2">π <span class="text-emerald-400">Deep Dive</span></div>
+      <p class="text-slate-500 text-sm">Enter the session token from your terminal</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <label class="block text-xs font-mono text-slate-400 mb-2 uppercase tracking-wider">Session Token</label>
+      <input id="authInput" type="text" spellcheck="false" autocomplete="off" placeholder="Paste token here…"
+        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 font-mono text-sm outline-none focus:border-emerald-400/50 transition-colors placeholder:text-slate-600">
+      <div id="authError" class="hidden mt-3 text-xs text-rose-400 font-mono"></div>
+      <button id="authBtn" onclick="submitToken()"
+        class="w-full mt-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-all cursor-pointer border-none">
+        Connect
+      </button>
+    </div>
+    <p class="text-center text-slate-600 text-xs mt-4 font-mono">Token is shown when you run /deep-dive</p>
+  </div>
+</div>
+
+<!-- Selection popup -->
+<div class="sel-popup fixed z-[200] items-center gap-1.5 bg-slate-800 border border-emerald-400 rounded-lg px-3 py-1.5 text-xs font-sans text-emerald-400 cursor-pointer shadow-xl hover:bg-emerald-500 hover:text-slate-950 transition-all select-none animate-fade" id="selPopup" onclick="captureSelection()">
+  📎 Ask about this
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════════
+let ws = null, connected = false, streaming = false;
+let streamBubble = null, streamText = '', pendingAssistant = false, textDoneHandled = false;
+let thinkingBlock = null, thinkingText = '';
+const toolCalls = new Map();
+let selectionContext = null;
+let chatCollapsed = false;
+let unreadWhileCollapsed = false;
+let docReady = false;
+let sessionPrompt = ''; // exploration topic from /deep-dive prompt
+
+
+// ═══════════════════════════════════════════════════════════════
+// Collapsible chat panel
+// ═══════════════════════════════════════════════════════════════
+function toggleChat() {
+  chatCollapsed = !chatCollapsed;
+  document.getElementById('panels').classList.toggle('chat-closed', chatCollapsed);
+  // Top-bar button visible only when collapsed (open button ←)
+  // Sidebar button is inside the panel, only visible when open (close button →)
+  document.getElementById('chatToggleBtn').classList.toggle('hidden', !chatCollapsed);
+  if (!chatCollapsed) {
+    unreadWhileCollapsed = false;
+    document.getElementById('toggleBadge').classList.add('hidden');
+  }
+}
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); toggleChat(); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Selection → "Ask about this"
+// ═══════════════════════════════════════════════════════════════
+// Listen for selection events from the sandboxed iframe via postMessage
+let lastSelText = '';
+window.addEventListener('message', function(e) {
+  if (e.data?.type === 'dd-sel') {
+    lastSelText = e.data.text;
+    const iframe = document.getElementById('docFrame');
+    const iframeRect = iframe.getBoundingClientRect();
+    const r = e.data.rect;
+    showSelPopup(iframeRect.left + r.left + r.width / 2, iframeRect.top + r.top - 6);
+  } else if (e.data?.type === 'dd-sel-clear') {
+    hideSelPopup();
+  }
+});
+
+function showSelPopup(x, y) {
+  const p = document.getElementById('selPopup');
+  p.classList.add('show');
+  p.style.left = Math.max(8, Math.min(x - p.offsetWidth / 2, innerWidth - p.offsetWidth - 8)) + 'px';
+  p.style.top = Math.max(50, y - p.offsetHeight - 4) + 'px';
+}
+function hideSelPopup() { document.getElementById('selPopup').classList.remove('show'); }
+
+function captureSelection() {
+  const text = lastSelText;
+  if (!text) return;
+  const lines = text.split('\n').length;
+  selectionContext = { text, lines, preview: text.length > 80 ? text.slice(0,77)+'…' : text };
+  document.getElementById('ctxText').textContent = selectionContext.preview;
+  document.getElementById('ctxLines').textContent = `${lines} line${lines>1?'s':''}`;
+  document.getElementById('contextBar').classList.add('show');
+  hideSelPopup();
+  lastSelText = '';
+  if (chatCollapsed) toggleChat();
+  document.getElementById('input').focus();
+}
+function clearContext() { selectionContext = null; document.getElementById('contextBar').classList.remove('show'); }
+document.addEventListener('mousedown', e => { if (!e.target.closest('.sel-popup')) hideSelPopup(); });
+
+// ═══════════════════════════════════════════════════════════════
+// Resizable panel
+// ═══════════════════════════════════════════════════════════════
+{
+  const handle = document.getElementById('resizeHandle');
+  const chat = document.getElementById('panelChat');
+  let dragging = false, startX = 0, startW = 0;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragging = true;
+    startX = e.clientX;
+    startW = chat.offsetWidth;
+    chat.style.transition = 'none';  // disable animation during drag
+    handle.classList.add('active');
+    document.body.classList.add('resizing');
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = startX - e.clientX;
+    const newW = Math.max(280, Math.min(startW + delta, innerWidth * 0.7));
+    chat.style.width = newW + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    chat.style.transition = '';  // re-enable animation
+    handle.classList.remove('active');
+    document.body.classList.remove('resizing');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Auth + WebSocket
+// ═══════════════════════════════════════════════════════════════
+let wsRejectCount = 0;
+
+function getToken() { return sessionStorage.getItem('dd-token') || ''; }
+function setToken(t) { sessionStorage.setItem('dd-token', t); }
+
+function showAuth(errorMsg) {
+  document.getElementById('authScreen').classList.remove('hidden');
+  const errEl = document.getElementById('authError');
+  if (errorMsg) { errEl.textContent = errorMsg; errEl.classList.remove('hidden'); }
+  else errEl.classList.add('hidden');
+  document.getElementById('authInput').value = getToken();
+  document.getElementById('authInput').focus();
+}
+function hideAuth() { document.getElementById('authScreen').classList.add('hidden'); }
+
+function submitToken() {
+  const val = document.getElementById('authInput').value.trim();
+  if (!val) { document.getElementById('authError').textContent = 'Token cannot be empty'; document.getElementById('authError').classList.remove('hidden'); return; }
+  setToken(val);
+  wsRejectCount = 0;
+  document.getElementById('authError').classList.add('hidden');
+  document.getElementById('authBtn').textContent = 'Connecting…';
+  connect();
+}
+
+document.getElementById('authInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitToken(); });
+
+function connect() {
+  if (!getToken()) { showAuth(); return; }
+  if (ws) { try { ws.onclose = null; ws.close(); } catch {} ws = null; }
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(getToken())}`);
+  ws.onopen = () => {
+    connected = true; wsRejectCount = 0;
+    stopReconnect();
+    hideAuth();
+    document.getElementById('authBtn').textContent = 'Connect';
+    // Don't set state here — wait for `init` message which tells us if agent is actually running
+    if (docReady) refreshDoc();
+  };
+  ws.onclose = (e) => {
+    const wasConnected = connected;
+    connected = false;
+    if (sessionState === 'ended') return; // user explicitly stopped, don't retry
+    // If we were previously connected and lost connection, the server shut down
+    if (wasConnected) {
+      setAgentBusy(false); hideWorking();
+      finishStream(); finishThinking(); finishAllRunning(); cleanOrphanedStreaming();
+      setSessionState('disconnected');
+      addSystemMsg('⚡ Server disconnected — will auto-reconnect when it\'s back. Run /deep-dive-resume in your terminal.');
+      // Auto-reconnect loop — try every 5s, token might change on new server
+      startReconnect();
+      return;
+    }
+    // Never connected — bad token or server not ready
+    wsRejectCount++;
+    if (sessionState === 'disconnected') {
+      // During auto-reconnect: server is back but token changed
+      if (wsRejectCount >= 3) {
+        stopReconnect();
+        showAuth('Server is back but the token changed. Paste the new token from your terminal.');
+        document.getElementById('authBtn').textContent = 'Connect';
+      }
+      return;
+    }
+    if (wsRejectCount >= 2) {
+      showAuth('Invalid or expired token. Check your terminal for the current token.');
+      document.getElementById('authBtn').textContent = 'Connect';
+      return;
+    }
+    setSessionState('connecting'); setTimeout(connect, 3000);
+  };
+  ws.onerror = () => {};
+  ws.onmessage = e => { try { handleEvent(JSON.parse(e.data)); } catch {} };
+}
+function sendWs(obj) { if (ws?.readyState === 1) ws.send(JSON.stringify(obj)); }
+
+let reconnectTimer = null, reconnectAttempts = 0;
+function startReconnect() {
+  stopReconnect();
+  reconnectAttempts = 0;
+  reconnectTimer = setInterval(() => {
+    reconnectAttempts++;
+    if (sessionState !== 'disconnected') { stopReconnect(); return; }
+    // Try to reach the server — if it responds, reconnect
+    // Token may have changed on restart, so try current token first
+    connect();
+    // After many attempts, suggest re-entering token
+    if (reconnectAttempts === 12) { // ~60s
+      addSystemMsg('💡 Server still not reachable. If you restarted with a new token, click the token pill to re-enter it.');
+    }
+  }, 5000);
+}
+function stopReconnect() {
+  if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+}
+
+let sessionState = 'connecting';
+function setSessionState(state) {
+  sessionState = state;
+  const pill = document.getElementById('sessionPill');
+  const dot = document.getElementById('pillDot');
+  const text = document.getElementById('pillText');
+  const stop = document.getElementById('stopBtn2');
+  pill.dataset.state = state;
+  // Reset all state-dependent classes
+  dot.className = 'w-1.5 h-1.5 rounded-full shrink-0 transition-all';
+  pill.classList.remove('border-emerald-400/30', 'opacity-50');
+  text.classList.remove('text-emerald-400');
+  stop.classList.remove('visible');
+  if (state === 'connecting') {
+    text.textContent = 'connecting…';
+    dot.classList.add('bg-amber-400', 'animate-pulse2');
+  } else if (state === 'live') {
+    text.textContent = 'Live';
+    dot.classList.add('bg-emerald-400', 'shadow-[0_0_6px_rgba(74,222,128,0.4)]');
+    pill.classList.add('border-emerald-400/30');
+    text.classList.add('text-emerald-400');
+    stop.classList.add('visible');
+    enableChat();
+  } else if (state === 'unresponsive') {
+    text.textContent = 'Unresponsive';
+    dot.classList.add('bg-amber-400', 'animate-pulse2');
+    pill.classList.add('border-amber-400/30');
+    text.classList.add('text-amber-400');
+    stop.classList.add('visible');
+    enableChat();
+  } else if (state === 'crashed') {
+    text.textContent = 'Crashed';
+    dot.classList.add('bg-rose-400', 'animate-pulse2');
+    pill.classList.add('border-rose-400/30');
+    text.classList.add('text-rose-400');
+    stop.classList.add('visible');
+    enableChat(); // keep chat enabled so user can see messages
+  } else if (state === 'restarting') {
+    text.textContent = 'Restarting…';
+    dot.classList.add('bg-amber-400', 'animate-pulse2');
+    pill.classList.add('border-amber-400/30');
+    text.classList.add('text-amber-400');
+    stop.classList.add('visible');
+    enableChat();
+  } else if (state === 'disconnected') {
+    text.textContent = 'Reconnecting…';
+    dot.classList.add('bg-amber-400', 'animate-pulse2');
+    pill.classList.add('border-amber-400/30');
+    text.classList.add('text-amber-400');
+    stop.classList.add('visible'); // clickable to enter new token
+    disableChat();
+  } else if (state === 'ended') {
+    text.textContent = 'Ended';
+    dot.classList.add('bg-slate-500');
+    pill.classList.add('opacity-50');
+    disableChat();
+  }
+}
+
+function onSessionPillClick() {
+  if (sessionState === 'live' || sessionState === 'crashed' || sessionState === 'restarting' || sessionState === 'unresponsive') {
+    if (confirm('End this deep-dive session?')) stopEverything();
+  }
+  if (sessionState === 'disconnected') {
+    stopReconnect();
+    showAuth('Enter the new token from /deep-dive-resume');
+  }
+}
+function disableChat() { document.querySelector('.input-bar')?.classList.add('disabled'); }
+function enableChat() { document.querySelector('.input-bar')?.classList.remove('disabled'); }
+
+// ═══════════════════════════════════════════════════════════════
+// Event handling
+// ═══════════════════════════════════════════════════════════════
+function handleEvent(data) {
+  if (data.type === 'init') {
+    if (data.htmlPath) { docReady = true; refreshDoc(); clearEmpty(); }
+    if (data.prompt) sessionPrompt = data.prompt;
+    if (data.agentRunning) {
+      setSessionState('live');
+      if (data.isStreaming) {
+        setAgentBusy(true);
+        if (data.validating) {
+          showWorking('Validating diagrams…', 2);
+        } else if (data.htmlPath) {
+          showWorking('Agent working (updating doc)…');
+        } else {
+          const label = data.prompt ? `Exploring: ${data.prompt.slice(0,60)}…` : 'Agent working (exploring codebase)…';
+          showWorking(label);
+        }
+        addSystemMsg('ℹ️ Connected to active session' + (data.prompt ? ` — Topic: ${data.prompt}` : ''));
+      } else {
+        // Agent is running but idle
+        if (data.htmlPath) {
+          addSystemMsg('✅ Document ready — ask questions in the chat');
+        } else {
+          addSystemMsg('ℹ️ Agent is idle — waiting for input');
+        }
+      }
+    } else {
+      // Server is running but agent is not — it crashed before we connected
+      setSessionState('crashed');
+      addSystemMsg('⚠️ Agent is not running. It may have crashed before you connected.');
+    }
+    return;
+  }
+  if (data.type === 'heartbeat') {
+    // Server pushes state every 15s — reconcile client state
+    if (!data.agentRunning && sessionState === 'live') {
+      setSessionState('crashed');
+      setAgentBusy(false); hideWorking();
+      finishStream(); finishThinking(); finishAllRunning(); cleanOrphanedStreaming();
+      addSystemMsg('💥 Agent is no longer running (detected via health check)');
+    }
+    if (data.agentRunning && (sessionState === 'crashed' || sessionState === 'restarting')) {
+      setSessionState('live');
+      addSystemMsg('✅ Agent is running again');
+    }
+
+    // Reconcile streaming state — if server says not streaming but client thinks busy
+    if (data.agentRunning && !data.isStreaming && agentBusy) {
+      setAgentBusy(false); hideWorking();
+      finishStream(); finishThinking(); finishAllRunning(); cleanOrphanedStreaming();
+    }
+    // Show health status in pill when unhealthy
+    if (data.agentRunning && data.consecutiveHealthFailures >= 2 && sessionState === 'live') {
+      setSessionState('unresponsive');
+    }
+    if (data.agentRunning && data.healthy && sessionState === 'unresponsive') {
+      setSessionState('live');
+    }
+    return;
+  }
+  if (data.type === 'agent_health') {
+    if (!data.healthy && data.failures >= 2) {
+      // Health probe sent to agent stdin got no response — process event loop is blocked
+      addSystemMsg(`⚠️ Agent process is not responding (${data.failures} failed health probes)`);
+      if (sessionState === 'live') setSessionState('unresponsive');
+    }
+    if (data.healthy && data.restored) {
+      addSystemMsg('✅ Agent is responding again');
+      if (sessionState === 'unresponsive') setSessionState('live');
+    }
+    return;
+  }
+  if (data.type === 'doc_ready') { docReady = true; clearEmpty(); refreshDoc(); addSystemMsg('📄 Document written — validating…'); return; }
+  if (data.type === 'agent_exit') {
+    finishStream(); finishThinking(); finishAllRunning(); cleanOrphanedStreaming();
+    setAgentBusy(false); hideWorking();
+    if (data.willRestart) {
+      setSessionState('crashed');
+      const secs = data.restartIn ? Math.round(data.restartIn / 1000) : '?';
+      addSystemMsg(`💥 Agent crashed (exit code ${data.code ?? '?'})${data.error ? ': ' + data.error : ''} — restarting in ${secs}s…`);
+    } else if (data.crashCount > 0) {
+      setSessionState('ended');
+      addSystemMsg(`💥 Agent crashed (exit code ${data.code ?? '?'})${data.error ? ': ' + data.error : ''} — restart limit reached. Run /deep-dive-resume to try again.`);
+      showDocEnded();
+    } else {
+      setSessionState('ended');
+      addSystemMsg(`⏹ Agent exited (code ${data.code ?? '?'})`);
+      showDocEnded();
+    }
+    return;
+  }
+  if (data.type === 'agent_restarting') {
+    setSessionState('restarting');
+    return;
+  }
+  if (data.type === 'agent_stopped') { setSessionState('ended'); streaming = false; setAgentBusy(false); hideWorking(); finishStream(); finishThinking(); finishAllRunning(); cleanOrphanedStreaming(); addSystemMsg('⏹ Session stopped'); showDocEnded(); return; }
+  if (data.type === 'agent_stderr') {
+    // Show stderr as a warning in the timeline so the user sees errors
+    if (data.text) addStderrMsg(data.text);
+    return;
+  }
+
+  if (data.type === 'validation_start') { showWorking(`Validating ${data.total} diagrams…`, 2); addSystemMsg(`🔍 Validating ${data.total} diagram(s)…`); return; }
+  if (data.type === 'validation_block') { showWorking(`Validating diagram ${data.index+1}/${data.total}: ${data.status==='ok'?'✓':'✗'}`, 2); return; }
+  if (data.type === 'validation_end') {
+    hideWorking(); // clear validation priority
+    if (data.ok) { addSystemMsg(`✅ All ${data.total} diagrams valid`); refreshDoc(); }
+    else { addSystemMsg(`⚠️ ${data.errorCount}/${data.total} diagrams have errors — fixing…`); showWorking('Fixing diagram errors…', 2); }
+    return;
+  }
+  if (data.type === 'validation_fix_request') { showWorking(`Fixing diagrams (attempt ${data.attempt}/${data.maxAttempts})…`, 2); addSystemMsg(`🔧 Fix attempt ${data.attempt}/${data.maxAttempts}`); return; }
+  if (data.type === 'validation_gave_up') { addSystemMsg('⚠️ Could not fix all diagrams'); hideWorking(); return; }
+  if (data.type === 'doc_validated') { addSystemMsg('✅ Document validated'); refreshDoc(); hideWorking(); return; }
+
+  if (data.type !== 'rpc_event') return;
+  const evt = data.event, et = evt.type;
+
+  if (et === 'agent_start') {
+    if (sessionState === 'crashed' || sessionState === 'restarting') addSystemMsg('✅ Agent restarted successfully');
+    setSessionState('live'); streaming = true; setAgentBusy(true); showWorking('Agent working…');
+  }
+  if (et === 'agent_end') { setSessionState('live'); streaming = false; setAgentBusy(false); hideWorking(); finishStream(); finishThinking(); finishAllRunning(); }
+  if (et === 'turn_start') { cleanOrphanedStreaming(); finishThinking(); }
+
+  if (et === 'message_start' && evt.message?.role === 'assistant') { streamText = ''; pendingAssistant = true; }
+
+  if (et === 'message_update') {
+    const ame = evt.assistantMessageEvent;
+    if (ame?.type === 'text_delta' && ame.delta) {
+      finishThinking();
+      streamText += ame.delta;
+      if (!streamBubble && pendingAssistant && streamText.trim()) {
+        streamBubble = addBubble('assistant', '', true);
+        streamBubble.classList.add('streaming');
+      }
+      if (streamBubble) { streamBubble.innerHTML = renderMd(streamText) + '<span class="inline-block w-0.5 h-3.5 bg-slate-400 animate-blink align-text-bottom ml-0.5"></span>'; scrollTl(); }
+    }
+    if (ame?.type === 'thinking_delta' && ame.delta) {
+      showWorking('Thinking…');
+      thinkingText += ame.delta;
+      if (!thinkingBlock) { thinkingBlock = createThinkingBlock(); appendToTimeline(thinkingBlock); }
+      updateThinkingBlock(thinkingBlock, thinkingText, true);
+    }
+    if (ame?.type === 'thinking_end') finishThinking();
+    if (!ame && evt.message) {
+      const text = extractText(evt.message);
+      if (text && text !== streamText) {
+        finishThinking(); streamText = text;
+        if (!streamBubble && pendingAssistant && streamText.trim()) { streamBubble = addBubble('assistant', '', true); streamBubble.classList.add('streaming'); }
+        if (streamBubble) { streamBubble.innerHTML = renderMd(streamText) + '<span class="inline-block w-0.5 h-3.5 bg-slate-400 animate-blink align-text-bottom ml-0.5"></span>'; scrollTl(); }
+      }
+    }
+  }
+
+  if (et === 'text_done') {
+    if (streamBubble) { if (streamText.trim()) { streamBubble.innerHTML = renderMd(streamText); highlightCode(streamBubble); pushChatLog('a', streamText); streamBubble.classList.remove('streaming'); } else streamBubble.remove(); streamBubble = null; }
+    textDoneHandled = true; streamText = ''; pendingAssistant = false; cleanOrphanedStreaming();
+  }
+
+  if (et === 'message_end' && evt.message?.role === 'assistant') {
+    finishThinking();
+    if (textDoneHandled) { textDoneHandled = false; cleanOrphanedStreaming(); return; }
+    const text = evt.message.text || extractText(evt.message) || streamText;
+    if (streamBubble) { if (text.trim()) { streamBubble.innerHTML = renderMd(text); highlightCode(streamBubble); pushChatLog('a', text); streamBubble.classList.remove('streaming'); } else streamBubble.remove(); streamBubble = null; }
+    else if (text.trim()) addBubble('assistant', text);
+    cleanOrphanedStreaming(); streamText = ''; pendingAssistant = false; scrollTl();
+  }
+
+  if (et === 'tool_execution_start') {
+    if (streamBubble) finishStream(); finishThinking();
+    const id = evt.toolCallId, name = evt.toolName || '?', args = evt.args || {};
+    const label = toolLabel(name, args);
+    const el = addToolCard(id, name, label, args);
+    toolCalls.set(id, { el, name, args, startTime: Date.now() });
+    workingPriority = 0; // reset so tool labels can show
+    // Show contextual working label
+    const n = name.toLowerCase();
+    const p = (args.path || '').toLowerCase();
+    if ((n === 'write' || n === 'edit') && p.endsWith('.html')) {
+      showWorking('Writing document…', 1);
+    } else {
+      showWorking(label ? `${n} ${label}` : name, 1);
+    }
+  }
+
+  if (et === 'tool_execution_update') {
+    const tc = toolCalls.get(evt.toolCallId);
+    if (tc && evt.partialResult != null) {
+      const out = tc.el.querySelector('.tc-output');
+      if (out) { out.textContent = truncStr(typeof evt.partialResult === 'string' ? evt.partialResult : JSON.stringify(evt.partialResult, null, 2), 8000); out.classList.remove('italic', 'text-slate-500'); }
+    }
+  }
+
+  if (et === 'tool_execution_end') {
+    const tc = toolCalls.get(evt.toolCallId);
+    if (tc) {
+      finishToolCard(tc.el, evt.result, evt.isError, Date.now() - tc.startTime);
+      toolCalls.delete(evt.toolCallId);
+      if ((evt.toolName === 'Write' || evt.toolName === 'write') && !evt.isError && (tc.args?.path||'').endsWith('.html')) { addSystemMsg('📄 Document updated'); refreshDoc(); }
+    }
+    // If no more tools running, drop priority so thinking/other labels can show
+    if (toolCalls.size === 0) { workingPriority = 0; showWorking('Agent working…'); }
+  }
+  if (et === 'response' && evt.command === 'prompt' && !evt.success) addSystemMsg('Error: ' + evt.error);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Thinking block
+// ═══════════════════════════════════════════════════════════════
+function createThinkingBlock() {
+  const el = document.createElement('div');
+  el.className = 'shrink-0 animate-fade';
+  el.innerHTML = `
+    <div class="flex items-center gap-2 py-1 cursor-pointer select-none text-[13px] text-slate-500 hover:text-slate-400 transition-colors thinking-header"
+         onclick="const c=this.nextElementSibling; const open=c.style.display!=='block'; c.style.display=open?'block':'none'; this.querySelector('.chev').textContent=open?'▼':'▶';">
+      <span class="chev text-[10px]">▶</span>
+      <span class="thinking-label-text shimmer">Thinking…</span>
+    </div>
+    <div class="thinking-content pl-5 py-2 text-xs leading-relaxed text-slate-500 border-l-2 border-slate-700 max-h-[300px] overflow-y-auto whitespace-pre-wrap font-mono"></div>`;
+  return el;
+}
+function updateThinkingBlock(el, text, isStreaming) {
+  const label = el.querySelector('.thinking-label-text');
+  if (isStreaming) { label.classList.add('shimmer'); label.textContent = 'Thinking…'; }
+  else { label.classList.remove('shimmer'); label.textContent = 'Thought'; }
+  el.querySelector('.thinking-content').textContent = text;
+}
+function finishThinking() { if (thinkingBlock) { updateThinkingBlock(thinkingBlock, thinkingText, false); thinkingBlock = null; } thinkingText = ''; }
+
+// ═══════════════════════════════════════════════════════════════
+// Stream + cleanup helpers
+// ═══════════════════════════════════════════════════════════════
+function finishStream() {
+  if (streamBubble) { if (streamText.trim()) { streamBubble.innerHTML = renderMd(streamText); highlightCode(streamBubble); pushChatLog('a', streamText); streamBubble.classList.remove('streaming'); } else streamBubble.remove(); streamBubble = null; }
+  streamText = ''; pendingAssistant = false; cleanOrphanedStreaming();
+}
+function cleanOrphanedStreaming() {
+  if (streamBubble) return;
+  document.querySelectorAll('.streaming').forEach(el => el.classList.remove('streaming'));
+  document.querySelectorAll('.msg-md .animate-blink').forEach(el => el.remove());
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Working indicator
+// ═══════════════════════════════════════════════════════════════
+let workingTimer = null, workingStart = 0, workingLabel = '', workingPriority = 0;
+
+// priority: 0 = normal (thinking), 1 = tool running, 2 = validation/system
+function showWorking(text, priority) {
+  priority = priority || 0;
+  if (text && text === workingLabel && priority >= workingPriority) return;
+  // Don't let lower-priority updates overwrite higher-priority ones
+  if (priority < workingPriority && workingLabel) return;
+  if (text) { workingLabel = text; workingPriority = priority; }
+  document.getElementById('workingText').textContent = workingLabel;
+  document.getElementById('working').classList.add('show');
+  if (!workingTimer) {
+    workingStart = Date.now();
+    workingTimer = setInterval(() => {
+      document.getElementById('workingElapsed').textContent = fmtDur(Date.now() - workingStart);
+    }, 1000);
+  }
+  document.getElementById('workingElapsed').textContent = fmtDur(Date.now() - workingStart);
+}
+function hideWorking() {
+  document.getElementById('working').classList.remove('show');
+  if (workingTimer) { clearInterval(workingTimer); workingTimer = null; }
+  document.getElementById('workingElapsed').textContent = ''; workingLabel = ''; workingPriority = 0;
+}
+function finishAllRunning() { for (const [id, tc] of toolCalls) finishToolCard(tc.el, null, false, Date.now()-tc.startTime); toolCalls.clear(); }
+function extractText(msg) { if (!msg?.content) return ''; return msg.content.filter(c=>c.type==='text').map(c=>c.text).join('\n'); }
+
+// ═══════════════════════════════════════════════════════════════
+// Tool cards
+// ═══════════════════════════════════════════════════════════════
+const TC = { read:'text-emerald-400', bash:'text-amber-400', write:'text-violet-400', edit:'text-teal-400' };
+
+function addToolCard(id, name, label, args) {
+  clearEmpty();
+  const n = name.toLowerCase();
+  const el = document.createElement('div');
+  el.className = 'tc p-2 border border-amber-400/20 rounded-lg bg-slate-900 shrink-0 overflow-hidden animate-fade running';
+  el.dataset.id = id;
+  el.innerHTML = `
+    <div class="tc-head flex items-center gap-2 cursor-pointer select-none" onclick="this.parentElement.classList.toggle('open')">
+      <span class="tc-status w-4 h-4 flex items-center justify-center shrink-0"><span class="w-3.5 h-3.5 border-2 border-slate-700 border-t-amber-400 rounded-full animate-spin2"></span></span>
+      <span class="font-mono text-[13px] font-semibold shrink-0 ${TC[n]||'text-slate-400'}">${esc(name)}</span>
+      <span class="font-mono text-[13px] text-slate-500 truncate flex-1">${label?esc(label):''}</span>
+      <span class="tc-chev text-slate-500 text-[10px] shrink-0 transition-transform">▶</span>
+    </div>
+    <div class="tc-body mt-2.5 flex-col gap-1.5">
+      ${makeConsole('input', fmtInput(name, args))}
+      ${makeConsole('output', '<span class="italic text-slate-500">running…</span>', 'tc-output')}
+    </div>`;
+  appendToTimeline(el);
+  return el;
+}
+
+function makeConsole(label, content, extraClass) {
+  return `<div class="bg-slate-950 border border-slate-800 rounded-md overflow-hidden">
+    <div class="flex items-center justify-between px-2.5 py-1 bg-slate-900 border-b border-slate-800 text-[11px] font-mono text-slate-500">
+      <span>${esc(label)}</span><button class="hover:text-slate-300 transition-colors" onclick="copyConsole(this)">copy</button>
+    </div>
+    <div class="max-h-[250px] overflow-auto p-2.5 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all text-slate-300 slim-scroll${extraClass?' '+extraClass:''}">${content}</div>
+  </div>`;
+}
+
+function finishToolCard(el, result, isError, elapsed) {
+  el.classList.remove('running');
+  el.classList.replace('border-amber-400/20', isError ? 'border-rose-400/20' : 'border-slate-800');
+  const s = el.querySelector('.tc-status');
+  if (s) s.innerHTML = `<span class="text-[13px] ${isError?'text-rose-400':'text-emerald-400'}">${isError?'✗':'✓'}</span>`;
+  const chev = el.querySelector('.tc-chev');
+  if (chev) { const d = document.createElement('span'); d.className = 'font-mono text-[11px] text-slate-500 shrink-0'; d.textContent = fmtDur(elapsed); chev.before(d); }
+  const out = el.querySelector('.tc-output');
+  if (out && result != null) { out.innerHTML = ''; out.textContent = fmtResult(result) || '(empty)'; out.classList.remove('italic','text-slate-500'); if (isError) out.classList.add('text-rose-400'); }
+  else if (out) { out.innerHTML = ''; out.textContent = '(no output)'; out.classList.add('italic','text-slate-500'); }
+}
+
+function toolLabel(name, args) {
+  const n = name.toLowerCase();
+  if (n === 'read' && args.path) { let s = shortPath(args.path); if (args.offset) s += ` :${args.offset}`; return s; }
+  if (n === 'bash' && args.command) { const c = args.command; return c.length > 80 ? c.slice(0,77)+'…' : c; }
+  if ((n === 'write' || n === 'edit') && args.path) return shortPath(args.path);
+  if (args.path) return shortPath(args.path);
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Console formatters
+// ═══════════════════════════════════════════════════════════════
+function fmtInput(name, args) {
+  const n = name.toLowerCase();
+  if (n === 'bash' && args.command) return esc('> ' + args.command);
+  if (n === 'read') { let s = args.path||''; if (args.offset) s += `  offset: ${args.offset}`; if (args.limit) s += `  limit: ${args.limit}`; return esc(s); }
+  if (n === 'write') { let s = args.path||''; if (args.content != null) s += '\n\n' + truncStr(args.content, 4000); return esc(s); }
+  if (n === 'edit') return fmtEditDiff(args);
+  try { return esc(JSON.stringify(args, null, 2)); } catch { return esc(String(args)); }
+}
+function fmtEditDiff(args) {
+  let h = '<span class="text-slate-500">' + esc(args.path||'') + '</span>\n';
+  if (args.oldText) args.oldText.split('\n').forEach(l => { h += '<span class="text-rose-400">- ' + esc(l) + '</span>\n'; });
+  if (args.newText) args.newText.split('\n').forEach(l => { h += '<span class="text-emerald-400">+ ' + esc(l) + '</span>\n'; });
+  return h;
+}
+function fmtResult(r) {
+  if (typeof r === 'string') return truncStr(r, 8000);
+  if (r?.content && Array.isArray(r.content)) return truncStr(r.content.filter(c=>c.type==='text').map(c=>c.text).join('\n'), 8000);
+  if (typeof r === 'object') { try { return truncStr(JSON.stringify(r,null,2), 8000); } catch {} }
+  return truncStr(String(r), 8000);
+}
+function copyConsole(btn) {
+  const body = btn.closest('div').parentElement.querySelector('.slim-scroll, [class*="overflow-auto"]') || btn.closest('div').nextElementSibling;
+  if (!body) return;
+  navigator.clipboard.writeText(body.textContent||'').then(() => { btn.textContent = 'copied!'; setTimeout(() => btn.textContent = 'copy', 1500); }).catch(() => {});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Timeline helpers
+// ═══════════════════════════════════════════════════════════════
+function addBubble(role, text, empty) {
+  clearEmpty();
+  const div = document.createElement('div');
+  if (role === 'user') {
+    div.className = 'msg-md ml-8 p-2.5 rounded-lg text-[13px] leading-relaxed break-words shrink-0 animate-fade bg-emerald-400/5 border border-emerald-400/15';
+  } else {
+    div.className = 'msg-md p-2.5 rounded-lg text-[13px] leading-relaxed break-words shrink-0 animate-fade bg-slate-900 border border-slate-800';
+  }
+  if (!empty) {
+    div.innerHTML = role === 'assistant' ? renderMd(text) : esc(text);
+    if (role === 'assistant') highlightCode(div);
+    if (!restoring) pushChatLog(role === 'user' ? 'u' : 'a', text);
+  }
+  appendToTimeline(div);
+  return div;
+}
+function addSystemMsg(text) {
+  clearEmpty();
+  const div = document.createElement('div');
+  div.className = 'text-slate-500 text-xs italic text-center py-1 shrink-0 animate-fade';
+  div.textContent = text;
+  if (!restoring) pushChatLog('s', text);
+  appendToTimeline(div);
+}
+function addStderrMsg(text) {
+  clearEmpty();
+  const div = document.createElement('div');
+  div.className = 'text-amber-400/60 text-[11px] font-mono px-3 py-1 shrink-0 animate-fade border-l-2 border-amber-400/20 bg-amber-400/5 rounded-r break-all';
+  div.textContent = '⚠ ' + text;
+  if (!restoring) pushChatLog('e', text);
+  appendToTimeline(div);
+}
+function isNearBottom() {
+  const tl = document.getElementById('timeline');
+  return tl.scrollHeight - tl.scrollTop - tl.clientHeight < 80;
+}
+function updateJumpBtn() {
+  const btn = document.getElementById('jumpBottom');
+  if (isNearBottom()) btn.classList.add('hidden');
+  else btn.classList.remove('hidden');
+}
+document.getElementById('timeline').addEventListener('scroll', updateJumpBtn);
+function jumpToBottom() {
+  const tl = document.getElementById('timeline');
+  tl.scrollTop = tl.scrollHeight;
+  document.getElementById('jumpBottom').classList.add('hidden');
+}
+function appendToTimeline(el) {
+  const tl = document.getElementById('timeline');
+  const wasNearBottom = isNearBottom();
+  tl.appendChild(el);
+  if (wasNearBottom) requestAnimationFrame(() => tl.scrollTop = tl.scrollHeight);
+  else updateJumpBtn();
+  if (chatCollapsed && el.classList.contains('msg-md')) {
+    unreadWhileCollapsed = true;
+    document.getElementById('toggleBadge').classList.remove('hidden');
+  }
+}
+function clearEmpty() { const e = document.getElementById('emptyState'); if (e) e.remove(); }
+function scrollTl() { const tl = document.getElementById('timeline'); if (isNearBottom()) requestAnimationFrame(() => tl.scrollTop = tl.scrollHeight); else updateJumpBtn(); }
+
+// ═══════════════════════════════════════════════════════════════
+// Send / Abort / Stop
+// ═══════════════════════════════════════════════════════════════
+function onSendClick() { agentBusy ? abortAgent() : sendMsg(); }
+
+function sendMsg() {
+  const ta = document.getElementById('input');
+  const text = ta.value.trim();
+  if (!text || !connected || sessionState === 'ended') return;
+  ta.value = ''; ta.style.height = 'auto';
+  let prompt = text;
+  if (selectionContext) {
+    prompt = `The user selected the following text from the document:\n\n---\n${selectionContext.text}\n---\n\nQuestion: ${text}`;
+    addBubble('user', `📎 [${selectionContext.lines} lines selected]\n${text}`);
+    clearContext();
+  } else addBubble('user', text);
+  sendWs({ type: 'prompt', text: prompt });
+  jumpToBottom();
+}
+
+function abortAgent() {
+  sendWs({ type: 'abort' }); showWorking('Stopping…', 2);
+  // Server handles abort → agent emits agent_end → client clears via event
+}
+function stopEverything() {
+  stopReconnect();
+  sendWs({ type: 'abort' }); sendWs({ type: 'stop' });
+  setSessionState('ended'); setAgentBusy(false); hideWorking(); finishStream(); finishThinking(); finishAllRunning(); cleanOrphanedStreaming();
+  addSystemMsg('⏹ Session ended');
+  showDocEnded();
+}
+
+let agentBusy = false;
+function setAgentBusy(busy) {
+  agentBusy = busy;
+  const btn = document.getElementById('sendBtn');
+  const si = document.getElementById('sendIcon');
+  const xi = document.getElementById('stopIcon');
+  if (busy) { btn.classList.replace('bg-emerald-500','bg-rose-500'); btn.classList.replace('hover:bg-emerald-400','hover:bg-rose-400'); si.classList.add('hidden'); xi.classList.remove('hidden'); btn.title = 'Stop (Escape)'; }
+  else { btn.classList.replace('bg-rose-500','bg-emerald-500'); btn.classList.replace('hover:bg-rose-400','hover:bg-emerald-400'); si.classList.remove('hidden'); xi.classList.add('hidden'); btn.title = 'Send'; }
+}
+function refreshDoc() { document.getElementById('docFrame').src = '/doc?token=' + encodeURIComponent(getToken()) + '&t=' + Date.now(); }
+function showDocEnded() {
+  if (docReady) return; // doc exists, leave it showing
+  try {
+    const iframe = document.getElementById('docFrame');
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write('<!DOCTYPE html><html><head><style>body{background:#0c0c0f;color:#5a5a72;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}div{text-align:center}h2{color:#94a3b8;margin-bottom:8px}p{color:#475569;font-size:14px}</style></head><body><div><h2>Session ended</h2><p>No document was generated.<br>Run /deep-dive to start a new session.</p></div></body></html>');
+      doc.close();
+    }
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Markdown renderer
+// ═══════════════════════════════════════════════════════════════
+// Inline markdown formatting (escapes HTML first)
+function inlineFmt(line) {
+  line = esc(line);
+  // Inline code first (protects content from further formatting)
+  line = line.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  // Bold: **text** or __text__
+  line = line.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  line = line.replace(/__(.+?)__/g,'<strong>$1</strong>');
+  // Italic: *text* or _text_ (not inside bold markers)
+  line = line.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g,'<em>$1</em>');
+  line = line.replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g,'<em>$1</em>');
+  // Strikethrough: ~~text~~
+  line = line.replace(/~~(.+?)~~/g,'<del>$1</del>');
+  // Links: [text](url) — only allow http/https URLs
+  line = line.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, href) => {
+    const decoded = href.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+    return /^https?:\/\//i.test(decoded) ? `<a href="${decoded}" target="_blank" rel="noopener">${text}</a>` : `<a>${text}</a>`;
+  });
+  return line;
+}
+
+// Build HTML table from markdown rows
+function buildTableHtml(rows) {
+  const parseRow = (row) => row.split('|').slice(1, -1).map(c => c.trim());
+  const headers = parseRow(rows[0]);
+  const body = rows.slice(2).map(parseRow);
+  let html = '<table><thead><tr>';
+  headers.forEach(h => { html += '<th>' + inlineFmt(h) + '</th>'; });
+  html += '</tr></thead><tbody>';
+  body.forEach(row => { html += '<tr>'; row.forEach(c => { html += '<td>' + inlineFmt(c || '') + '</td>'; }); html += '</tr>'; });
+  html += '</tbody></table>';
+  return html;
+}
+
+// Apply syntax highlighting to code blocks in a container
+function highlightCode(el) {
+  if (typeof hljs === 'undefined') return;
+  el.querySelectorAll('pre code').forEach(block => { try { hljs.highlightElement(block); } catch {} });
+}
+
+function renderMd(src) {
+  if (!src) return '';
+  // Extract fenced code blocks
+  const codeBlocks = [];
+  let t = src.replace(/```(\w*)\n([\s\S]*?)```/g, (_,lang,code) => {
+    const cls = lang ? ` class="language-${esc(lang)}"` : '';
+    codeBlocks.push(`<pre><code${cls}>${esc(code.trimEnd())}</code></pre>`);
+    return `\x00CB${codeBlocks.length-1}\x00`;
+  });
+  // Extract tables (|...|  rows with |---|---| separator on line 2)
+  const tables = [];
+  t = t.replace(/((?:^[ \t]*\|[^\n]+\|[ \t]*$\n?){2,})/gm, (match) => {
+    const rows = match.trim().split('\n');
+    if (rows.length < 2 || !/^\s*\|[\s:|-]+\|\s*$/.test(rows[1])) return match;
+    tables.push(buildTableHtml(rows));
+    return `\x00TB${tables.length-1}\x00`;
+  });
+  const lines = t.split('\n'), out = []; let inList = false, listType = '';
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    // Code block placeholder
+    const cbm = line.match(/^\x00CB(\d+)\x00$/);
+    if (cbm) { if (inList) { out.push(listType==='ol'?'</ol>':'</ul>'); inList=false; } out.push(codeBlocks[+cbm[1]]); continue; }
+    // Table placeholder
+    const tbm = line.match(/^\x00TB(\d+)\x00$/);
+    if (tbm) { if (inList) { out.push(listType==='ol'?'</ol>':'</ul>'); inList=false; } out.push(tables[+tbm[1]]); continue; }
+    // Horizontal rule (check raw before escaping — ---, ***, ___)
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { if (inList) { out.push(listType==='ol'?'</ol>':'</ul>'); inList=false; } out.push('<hr>'); continue; }
+    // Apply inline formatting (escapes + bold/italic/code/links)
+    line = inlineFmt(line);
+    const hm = line.match(/^(#{1,3}) (.+)$/);
+    if (hm) { if (inList) { out.push(listType==='ol'?'</ol>':'</ul>'); inList=false; } out.push(`<h${hm[1].length}>${hm[2]}</h${hm[1].length}>`); continue; }
+    if (line.match(/^&gt; (.+)$/)) { if (inList) { out.push(listType==='ol'?'</ol>':'</ul>'); inList=false; } out.push(`<blockquote>${line.slice(5)}</blockquote>`); continue; }
+    const ulm = line.match(/^[\s]*[-•*] (.+)$/);
+    if (ulm) { if (!inList||listType!=='ul') { if (inList) out.push('</ol>'); out.push('<ul>'); inList=true; listType='ul'; } out.push(`<li>${ulm[1]}</li>`); continue; }
+    const olm = line.match(/^[\s]*(\d+)\. (.+)$/);
+    if (olm) { if (!inList||listType!=='ol') { if (inList) out.push('</ul>'); out.push('<ol>'); inList=true; listType='ol'; } out.push(`<li>${olm[2]}</li>`); continue; }
+    if (inList) { out.push(listType==='ol'?'</ol>':'</ul>'); inList=false; }
+    if (!line.trim()) { out.push('</p><p>'); continue; }
+    out.push(line+'<br>');
+  }
+  if (inList) out.push(listType==='ol'?'</ol>':'</ul>');
+  let html = '<p>'+out.join('\n')+'</p>';
+  return html.replace(/<p>\s*<\/p>/g,'').replace(/<p>\s*<br>\s*<\/p>/g,'').replace(/<br>\s*<\/p>/g,'</p>');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════════════════════════
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function shortPath(p) { const m = p.match(/(?:\/Users\/|\/home\/|[A-Z]:\\Users\\)\w+[\/\\](.+)/); return m ? '~/'+m[1].replace(/\\/g,'/') : (p.length>65?'…'+p.slice(-62):p); }
+function fmtDur(ms) { return ms<1000?ms+'ms':(ms/1000).toFixed(1)+'s'; }
+function truncStr(s,max) { s=String(s); return s.length<=max?s:s.slice(0,max)+'\n\n… (truncated)'; }
+
+// Auto-resize textarea
+const inputEl = document.getElementById('input');
+inputEl.addEventListener('input', function() { this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
+inputEl.addEventListener('keydown', function(e) {
+  if (e.key==='Enter'&&!e.shiftKey) { e.preventDefault(); agentBusy?abortAgent():sendMsg(); }
+  if (e.key==='Escape') { e.preventDefault(); if (agentBusy) abortAgent(); }
+});
+document.addEventListener('keydown', e => { if (e.key==='Escape'&&agentBusy) { e.preventDefault(); abortAgent(); } });
+
+// ═══════════════════════════════════════════════════════════════
+// Chat persistence — survive page refresh
+// ═══════════════════════════════════════════════════════════════
+let restoring = false;
+const chatLog = [];
+const CHAT_STORAGE_KEY = 'dd-chat-log';
+
+function pushChatLog(type, text) {
+  chatLog.push({t: type, x: text});
+  try { sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({token: getToken(), msgs: chatLog})); } catch {}
+}
+
+function restoreChatLog() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(CHAT_STORAGE_KEY) || '{}');
+    if (!saved.msgs?.length || saved.token !== getToken()) return false;
+    restoring = true;
+    for (const e of saved.msgs) {
+      chatLog.push(e);
+      if (e.t === 'u') addBubble('user', e.x);
+      else if (e.t === 'a') addBubble('assistant', e.x);
+      else if (e.t === 's') addSystemMsg(e.x);
+      else if (e.t === 'e') addStderrMsg(e.x);
+    }
+    restoring = false;
+    return true;
+  } catch { restoring = false; return false; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Chat text selection → "Ask about this"
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('timeline').addEventListener('mouseup', function(e) {
+  const sel = window.getSelection();
+  const text = sel?.toString().trim();
+  if (!text || text.length < 5) return;
+  // Only trigger from message bubbles
+  const node = sel.anchorNode;
+  if (!node) return;
+  const bubble = (node.nodeType === 3 ? node.parentElement : node)?.closest?.('.msg-md');
+  if (!bubble) return;
+  const range = sel.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  lastSelText = text;
+  showSelPopup(rect.left + rect.width / 2, rect.top - 6);
+});
+document.getElementById('timeline').addEventListener('mousedown', function() {
+  hideSelPopup();
+});
+
+// Start: restore chat then connect
+const chatRestored = restoreChatLog();
+if (chatRestored) docReady = true; // if we have history, doc was likely ready
+if (getToken()) { hideAuth(); connect(); } else { showAuth(); }
+</script>
+</body>
+</html>

@@ -1,18 +1,16 @@
 # boring
 
-Extensions and skills for [pi](https://github.com/badlogic/pi-mono) — the coding agent.
-
-This is a [pi package](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/packages.md). Install it to get all extensions and skills, or pick what you need.
+Extensions and skills for [pi](https://pi.dev) that are boring but good — production-ready tools for everyday development.
 
 ## Install
 
 ```bash
-# Install the full package
-pi install https://github.com/nicepkg/boring
-
-# Or try without installing
-pi -e https://github.com/nicepkg/boring
+pi install https://github.com/rezkam/boring
 ```
+
+That's it. All extensions are available immediately.
+
+> Want to try it without installing? `pi -e https://github.com/rezkam/boring`
 
 ## What's Inside
 
@@ -20,26 +18,11 @@ pi -e https://github.com/nicepkg/boring
 
 | Extension | Description |
 |-----------|-------------|
-| [deep-dive](pi-extensions/deep-dive/) | Interactive codebase architecture explorer — generates HTML docs with diagrams and a live chat UI in the browser |
+| [deep-dive](pi-extensions/deep-dive/) | Interactive codebase architecture explorer — generates rich HTML docs with mermaid diagrams, code walkthroughs, and a live chat sidebar |
 
 ### Skills
 
 *Coming soon.*
-
-## Selective Install
-
-Load only specific parts by filtering in your `settings.json`:
-
-```json
-{
-  "packages": [
-    {
-      "source": "https://github.com/nicepkg/boring",
-      "skills": []
-    }
-  ]
-}
-```
 
 ## License
 
