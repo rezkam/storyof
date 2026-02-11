@@ -7,12 +7,14 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-15, macos-14, ubuntu-24.04]
+        os: [macos-26, macos-15, ubuntu-24.04]
         node: [22]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -20,38 +22,71 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Install esbuild
-        run: npm install -g esbuild@0.24.2
+      - name: Install pi
+        run: npm install -g @mariozechner/pi-coding-agent
 
-      - name: Build extension
+      - name: Install package locally
         run: |
-          esbuild pi-extensions/deep-dive/index.ts \
-            --bundle \
-            --platform=node \
-            --format=esm \
-            --outfile=dist/deep-dive.mjs \
-            --external:@mariozechner/pi-coding-agent \
-            --external:@mariozechner/pi-tui
+          mkdir -p /tmp/test-project && cd /tmp/test-project
+          pi install -l "$GITHUB_WORKSPACE"
 
-      - name: Verify build output
+      - name: Verify extension discovery
         run: |
-          test -f dist/deep-dive.mjs
-          echo "Build size: $(wc -c < dist/deep-dive.mjs) bytes"
+          cd /tmp/test-project
+          # Spawn pi in RPC mode, ask for registered commands, exit
+          output=$(echo '{"type":"get_commands"}' | timeout 30 pi --mode rpc --no-session 2>/dev/null || true)
 
-      - name: Check UI file exists
-        run: test -f pi-extensions/deep-dive/ui.html
+          # Check that all three deep-dive commands are registered
+          for cmd in deep-dive deep-dive-resume deep-dive-stop; do
+            if echo "$output" | grep -q "\"name\":\"$cmd\""; then
+              echo "✓ /$cmd registered"
+            else
+              echo "✗ /$cmd NOT found"
+              echo "Output was:"
+              echo "$output" | head -20
+              exit 1
+            fi
+          done
 
-      - name: Validate CDN URLs are reachable
+      - name: Verify extension source path
+        run: |
+          cd /tmp/test-project
+          output=$(echo '{"type":"get_commands"}' | timeout 30 pi --mode rpc --no-session 2>/dev/null || true)
+
+          # Verify commands come from our extension file
+          if echo "$output" | grep -q '"path":".*boring/pi-extensions/deep-dive/index.ts"'; then
+            echo "✓ Commands loaded from correct extension path"
+          else
+            echo "✗ Extension path mismatch"
+            exit 1
+          fi
+
+      - name: Lint — no hardcoded user paths
+        run: |
+          if grep -rn '/Users/rez\|/home/rez' pi-extensions/; then
+            echo "✗ Found hardcoded user paths in source"
+            exit 1
+          fi
+          echo "✓ No hardcoded user paths"
+
+      - name: Lint — pinned versions only
+        run: |
+          if grep -n '@latest' pi-extensions/deep-dive/index.ts; then
+            echo "✗ Found @latest reference"
+            exit 1
+          fi
+          echo "✓ All versions pinned"
+
+      - name: Validate CDN URLs
         run: |
           urls=(
             "https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"
             "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"
             "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"
             "https://cdn.tailwindcss.com/3.4.17"
-            "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
           )
           for url in "${urls[@]}"; do
-            status=$(curl -sI -o /dev/null -w "%{http_code}" "$url")
+            status=$(curl -sI -o /dev/null -w "%{http_code}" --max-time 10 "$url")
             if [ "$status" = "200" ]; then
               echo "✓ $url"
             else
@@ -59,57 +94,3 @@ jobs:
               exit 1
             fi
           done
-
-      - name: Lint — no hardcoded user paths
-        run: |
-          if grep -rn '/Users/rez\|/home/rez' pi-extensions/; then
-            echo "Found hardcoded user paths"
-            exit 1
-          fi
-
-      - name: Lint — pinned versions only
-        run: |
-          # Check that no unpinned @latest or floating versions snuck in
-          if grep -n '@latest' pi-extensions/deep-dive/index.ts; then
-            echo "Found @latest reference"
-            exit 1
-          fi
-
-      - name: Lint — version constants used
-        run: |
-          # Verify mermaid/hljs versions come from constants, not hardcoded
-          node -e "
-            const src = require('fs').readFileSync('pi-extensions/deep-dive/index.ts', 'utf-8');
-            const has = (s) => src.includes(s);
-            const checks = [
-              ['MERMAID_CDN_VERSION constant', has('const MERMAID_CDN_VERSION')],
-              ['MERMAID_CLI_VERSION constant', has('const MERMAID_CLI_VERSION')],
-              ['HLJS_VERSION constant', has('const HLJS_VERSION')],
-              ['mermaid CDN uses constant', has('mermaid@\${MERMAID_CDN_VERSION}')],
-              ['mermaid CLI uses constant', has('mermaid-cli@\${MERMAID_CLI_VERSION}')],
-              ['hljs uses constant', has('highlight.js/\${HLJS_VERSION}')],
-            ];
-            let ok = true;
-            for (const [name, pass] of checks) {
-              console.log((pass ? '✓' : '✗') + ' ' + name);
-              if (!pass) ok = false;
-            }
-            if (!ok) process.exit(1);
-          "
-
-      - name: Lint — balanced braces
-        run: |
-          node -e "
-            const c = require('fs').readFileSync('pi-extensions/deep-dive/index.ts', 'utf-8');
-            let b=0,p=0,k=0;
-            for (const ch of c) {
-              if (ch==='{') b++; if (ch==='}') b--;
-              if (ch==='(') p++; if (ch===')') p--;
-              if (ch==='[') k++; if (ch===']') k--;
-            }
-            const ok = b===0 && p===0 && k===0;
-            console.log('{}: ' + b + (b===0?' ✓':' ✗'));
-            console.log('(): ' + p + (p===0?' ✓':' ✗'));
-            console.log('[]: ' + k + (k===0?' ✓':' ✗'));
-            if (!ok) process.exit(1);
-          "
