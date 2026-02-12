@@ -28,6 +28,18 @@ import { Box, Text } from "@mariozechner/pi-tui";
 const MERMAID_CDN_VERSION = "11.4.0";  // mermaid JS library — https://cdn.jsdelivr.net/npm/mermaid@VERSION
 const MERMAID_CLI_VERSION = "11.4.2";  // @mermaid-js/mermaid-cli — used for npx validation only
 const HLJS_VERSION = "11.9.0";         // highlight.js — CDN for code syntax highlighting
+
+// Mermaid theme — only controls fills, borders, and lines.
+// Text colors are NOT set so mermaid's base theme auto-contrast picks
+// dark text on light fills and light text on dark fills automatically.
+// Used in: sanitizer init directive, serve-time CSS fallback, prompt instructions.
+const MERMAID_THEME = {
+	accent: "#6ee7b7",    // borders, lines, arrows
+	fill: "#1a1a2e",      // default node/note background
+	bg: "#0c0c0f",        // diagram background
+	edgeLabelBg: "#13131a",
+} as const;
+const MERMAID_INIT_DIRECTIVE = `%%{init:{"theme":"base","themeVariables":{"primaryColor":"${MERMAID_THEME.fill}","primaryBorderColor":"${MERMAID_THEME.accent}","lineColor":"${MERMAID_THEME.accent}","secondaryColor":"${MERMAID_THEME.fill}","tertiaryColor":"${MERMAID_THEME.bg}","background":"${MERMAID_THEME.bg}","clusterBkg":"${MERMAID_THEME.bg}","clusterBorder":"${MERMAID_THEME.accent}","edgeLabelBackground":"${MERMAID_THEME.edgeLabelBg}","noteBkgColor":"${MERMAID_THEME.fill}","actorBorder":"${MERMAID_THEME.accent}","activationBorderColor":"${MERMAID_THEME.accent}"}}}%%`;
 // ═══════════════════════════════════════════════════════════════════════
 
 interface WsClient {
@@ -313,14 +325,13 @@ function sanitizeDocument(htmlPath: string): { changed: boolean; fixes: string[]
 		HLJS_CDN_JS
 	);
 
-	// 3. Force readable theme in every mermaid diagram via %%{init:}%% directive
-	const mermaidInitDirective = '%%{init:{"theme":"base","themeVariables":{"primaryColor":"#1e1e2e","primaryTextColor":"#cdd6f4","primaryBorderColor":"#7c8aff","lineColor":"#6fcf97","secondaryColor":"#1a1a2e","tertiaryColor":"#13131a","clusterBkg":"#1a1a2e","clusterBorder":"#7c8aff","edgeLabelBackground":"#13131a","nodeTextColor":"#cdd6f4"}}}%%';
+	// 3. Force readable monochrome theme in every mermaid diagram via %%{init:}%% directive
 	doc = doc.replace(
 		/(<(?:div|pre)\s+class\s*=\s*"mermaid"[^>]*>)\s*\n?([\s\S]*?)(<\/(?:div|pre)>)/gi,
 		(match, openTag, content, closeTag) => {
 			// Replace any existing init directive, or inject ours
 			const stripped = content.replace(/%%\{init:[\s\S]*?\}%%/g, '').replace(/^\s*\n/, '');
-			return `${openTag}\n${mermaidInitDirective}\n${stripped}${closeTag}`;
+			return `${openTag}\n${MERMAID_INIT_DIRECTIVE}\n${stripped}${closeTag}`;
 		}
 	);
 
@@ -841,24 +852,16 @@ img, svg { max-width: 100%; overflow: hidden; }
 .mermaid-wrap, [class*="mermaid"] { max-width: 100%; }
 table { display: block; overflow-x: auto; max-width: 100%; }
 body { overflow-x: hidden; }
-/* Force readable mermaid colors — overrides any theme the agent picked */
-.node rect, .node polygon, .node circle, .node ellipse,
-.node .label-container { fill: #1e1e2e !important; stroke: #7c8aff !important; }
-.nodeLabel, .node .label, .edgeLabel, .label text,
-.cluster-label .nodeLabel { color: #cdd6f4 !important; fill: #cdd6f4 !important; }
-.cluster rect { fill: #1a1a2e !important; stroke: #7c8aff !important; }
-.edgePath path, .flowchart-link { stroke: #6fcf97 !important; }
-marker path { fill: #6fcf97 !important; }
-.edgeLabel rect { fill: #13131a !important; }
-.actor { fill: #1e1e2e !important; stroke: #7c8aff !important; }
-.actor-line { stroke: #3a3a5a !important; }
-text.actor-label, .messageText, .loopText, .noteText { fill: #cdd6f4 !important; }
-.note rect, .note { fill: #1a1a2e !important; stroke: #7c8aff !important; }
-.activation { fill: #2a2a4a !important; }
-.section0, .section1 { fill: #1a1a2e !important; }
-.task, .taskText { fill: #cdd6f4 !important; }
-rect.task { fill: #1e1e2e !important; stroke: #7c8aff !important; }
-.titleText { fill: #cdd6f4 !important; }
+/* Mermaid fallback — only fills, borders, lines. No text color overrides
+   so mermaid auto-contrast and per-node style directives work correctly. */
+.cluster rect { fill: ${MERMAID_THEME.bg} !important; stroke: ${MERMAID_THEME.accent} !important; }
+.edgePath path, .flowchart-link { stroke: ${MERMAID_THEME.accent} !important; }
+marker path { fill: ${MERMAID_THEME.accent} !important; }
+.edgeLabel rect { fill: ${MERMAID_THEME.edgeLabelBg} !important; }
+.note rect, .note { fill: ${MERMAID_THEME.fill} !important; stroke: ${MERMAID_THEME.accent} !important; }
+.activation { fill: ${MERMAID_THEME.fill} !important; stroke: ${MERMAID_THEME.accent} !important; }
+.section0, .section1 { fill: ${MERMAID_THEME.fill} !important; }
+rect.task { fill: ${MERMAID_THEME.fill} !important; stroke: ${MERMAID_THEME.accent} !important; }
 </style>\n</head>`);
 					res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); res.end(doc);
 				} else {
@@ -1063,10 +1066,13 @@ Mermaid (include in <head> — IMPORTANT: use this EXACT URL, do not change the 
 - 5-15 nodes each. Use <br/> for multi-line labels.
 - CRITICAL: Do NOT use square brackets [] in sequence diagram message text — it triggers mermaid's "loop" keyword. Use () instead.
 - CRITICAL: Escape &amp; &lt; &gt; properly in HTML context.
-- CRITICAL: Every mermaid diagram MUST start with the init directive on its first line to set colors.
-  This is the ONLY way to get readable colors. Example:
+- CRITICAL: Every mermaid diagram MUST start with the init directive on its first line.
+  This sets fills and borders only. Do NOT set any text color variables (primaryTextColor,
+  nodeTextColor, etc.) — mermaid's base theme auto-contrast will pick dark or light text
+  based on each node's fill color. If you use per-node style directives (e.g. style A fill:#f0c674,color:#000),
+  they will work correctly because no global text color override exists. Example:
   <div class="mermaid">
-  %%{init:{"theme":"base","themeVariables":{"primaryColor":"#1e1e2e","primaryTextColor":"#cdd6f4","primaryBorderColor":"#7c8aff","lineColor":"#6fcf97","secondaryColor":"#1a1a2e","tertiaryColor":"#13131a","clusterBkg":"#1a1a2e","clusterBorder":"#7c8aff","edgeLabelBackground":"#13131a","nodeTextColor":"#cdd6f4"}}}%%
+  %%{init:{"theme":"base","themeVariables":{"primaryColor":"#1a1a2e","primaryBorderColor":"#6ee7b7","lineColor":"#6ee7b7","secondaryColor":"#1a1a2e","tertiaryColor":"#0c0c0f","background":"#0c0c0f","clusterBkg":"#0c0c0f","clusterBorder":"#6ee7b7","edgeLabelBackground":"#13131a","noteBkgColor":"#1a1a2e","actorBorder":"#6ee7b7"}}}%%
   graph TD
     A[Something] --> B[Other]
   </div>
