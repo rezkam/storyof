@@ -813,6 +813,7 @@ document.addEventListener("mousedown",function(){parent.postMessage({type:"dd-se
 							model: S.model,
 							provider: S.provider,
 							isSubscription: S.isSubscription,
+							allowEdits: S.allowEdits,
 							depth: S.depth,
 							usage: {
 								input: totals.usage.input,

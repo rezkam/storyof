@@ -140,6 +140,7 @@ tailwind.config = {
     <span id="statCacheW" class="shrink-0 text-slate-600 cursor-default"></span>
     <span id="statCost" class="shrink-0 cursor-default"></span>
     <span id="statSub" class="shrink-0 text-amber-500/70 text-[10px] hidden cursor-default" title="You're on a subscription plan — this cost is an estimate of what API calls would cost, not what you're being charged">(sub)</span>
+    <span id="statReadOnly" class="shrink-0 text-sky-400/70 text-[10px] hidden cursor-default" title="Read-only mode — the agent cannot modify files. Use --dangerously-allow-edits to enable editing.">(read-only)</span>
     <span class="shrink-0 text-slate-700">·</span>
     <span id="statProvider" class="shrink-0 text-slate-600 cursor-default"></span>
     <!-- Model selector -->
@@ -744,6 +745,8 @@ function handleEvent(data) {
       document.getElementById('statProvider').title = data.provider ? 'Provider: ' + data.provider : '';
       document.getElementById('statSub').classList.toggle('hidden', !data.isSubscription);
     }
+    // Show read-only badge when edits are disabled (default)
+    document.getElementById('statReadOnly').classList.toggle('hidden', !!data.allowEdits);
     if (data.usage) {
       updateStatusLine(data.usage, null, data.model, data.provider, data.isSubscription);
     }
