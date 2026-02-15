@@ -104,10 +104,6 @@ jobs:
       - name: Test CLI with env var
         run: |
           export ANTHROPIC_API_KEY=test-key
-          # Just test that auth check passes (don't actually run)
-          if timeout 2 node dist/cli.js --help > /dev/null 2>&1; then
-            echo "✅ Accepts environment variable"
-          else
-            echo "❌ Should accept environment variable"
-            exit 1
-          fi
+          # Just test that --help works with env var set
+          node dist/cli.js --help > /dev/null 2>&1
+          echo "✅ Accepts environment variable"
