@@ -21,8 +21,8 @@ export function createAuthStorage(): AuthStorage {
 		if (!mapping) return undefined;
 
 		// Check CODEDIVE_ prefixed var first
-		const codeDiveVal = process.env[mapping.codeDive];
-		if (codeDiveVal) return codeDiveVal;
+		const codediveVal = process.env[mapping.codedive];
+		if (codediveVal) return codediveVal;
 
 		// Then check standard env vars
 		for (const fallback of mapping.fallbacks) {

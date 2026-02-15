@@ -87,9 +87,9 @@ describe("CLI Authentication", () => {
 
 	beforeEach(() => {
 		tempHome = makeTempDir();
-		const codeDiveDir = path.join(tempHome, ".codedive");
-		authFile = path.join(codeDiveDir, "auth.json");
-		fs.mkdirSync(codeDiveDir, { recursive: true });
+		const codediveDir = path.join(tempHome, ".codedive");
+		authFile = path.join(codediveDir, "auth.json");
+		fs.mkdirSync(codediveDir, { recursive: true });
 		fs.writeFileSync(authFile, "{}", { mode: 0o600 });
 	});
 

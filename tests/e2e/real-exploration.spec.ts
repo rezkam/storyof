@@ -136,7 +136,7 @@ function snapshotRealAuth(): string | null {
  * Spawn the codedive CLI, wait for it to print URL + token, return both.
  * The process keeps running (agent working) until killed.
  */
-function spawnCodeDive(
+function spawnCodedive(
 	args: string[],
 	cwd: string,
 	env: Record<string, string>,
@@ -323,7 +323,7 @@ for (const repo of TEST_REPOS) {
 
 			// Start the CLI
 			const env = cleanEnv(tempHome);
-			const result = await spawnCodeDive(
+			const result = await spawnCodedive(
 				["--depth", "shallow"],
 				repoDir,
 				env,
@@ -693,7 +693,7 @@ for (const repo of TEST_REPOS) {
 			const env = cleanEnv(tempHome);
 
 			// Resume the session
-			const result = await spawnCodeDive(["resume"], repoDir, env);
+			const result = await spawnCodedive(["resume"], repoDir, env);
 			cliProc = result.proc;
 			cliUrl = result.url;
 			cliToken = result.token;
@@ -757,7 +757,7 @@ for (const repo of TEST_REPOS) {
 			// The GLOBAL_DIR in constants.ts uses os.homedir().
 			// Since we set HOME to tempHome, the real home should be untouched.
 			// But let's verify nothing leaked.
-			const realCodeDiveDir = path.join(os.homedir(), ".codedive");
+			const realCodediveDir = path.join(os.homedir(), ".codedive");
 
 			// If it didn't exist before, it shouldn't exist now either
 			// (we can't know for sure if user had it, so we check auth.json content instead)

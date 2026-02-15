@@ -38,13 +38,13 @@ export function saveMeta(meta: SessionMeta): void {
 /** Load all sessions for a project directory */
 export function loadLocalSessions(targetPath: string): SessionMeta[] {
 	const sessions: SessionMeta[] = [];
-	const codeDiveDir = path.join(targetPath, LOCAL_DIR_NAME);
+	const codediveDir = path.join(targetPath, LOCAL_DIR_NAME);
 	try {
-		if (!fs.existsSync(codeDiveDir)) return sessions;
-		for (const entry of fs.readdirSync(codeDiveDir)) {
-			const metaFile = path.join(codeDiveDir, entry, "meta.json");
+		if (!fs.existsSync(codediveDir)) return sessions;
+		for (const entry of fs.readdirSync(codediveDir)) {
+			const metaFile = path.join(codediveDir, entry, "meta.json");
 			try {
-				if (!fs.statSync(path.join(codeDiveDir, entry)).isDirectory()) continue;
+				if (!fs.statSync(path.join(codediveDir, entry)).isDirectory()) continue;
 				const meta: SessionMeta = JSON.parse(fs.readFileSync(metaFile, "utf-8"));
 				if (!meta.id) meta.id = entry;
 				if (!meta.targetPath) meta.targetPath = targetPath;

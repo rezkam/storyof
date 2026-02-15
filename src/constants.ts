@@ -50,41 +50,41 @@ export const HEARTBEAT_INTERVAL = 15_000;
  * CodeDive environment variables (CODEDIVE_ prefix) with fallbacks
  * to standard provider env vars.
  */
-export const ENV_VAR_MAP: Record<string, { codeDive: string; fallbacks: string[] }> = {
+export const ENV_VAR_MAP: Record<string, { codedive: string; fallbacks: string[] }> = {
 	anthropic: {
-		codeDive: "CODEDIVE_ANTHROPIC_API_KEY",
+		codedive: "CODEDIVE_ANTHROPIC_API_KEY",
 		fallbacks: ["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"],
 	},
 	openai: {
-		codeDive: "CODEDIVE_OPENAI_API_KEY",
+		codedive: "CODEDIVE_OPENAI_API_KEY",
 		fallbacks: ["OPENAI_API_KEY"],
 	},
 	google: {
-		codeDive: "CODEDIVE_GEMINI_API_KEY",
+		codedive: "CODEDIVE_GEMINI_API_KEY",
 		fallbacks: ["GEMINI_API_KEY"],
 	},
 	groq: {
-		codeDive: "CODEDIVE_GROQ_API_KEY",
+		codedive: "CODEDIVE_GROQ_API_KEY",
 		fallbacks: ["GROQ_API_KEY"],
 	},
 	xai: {
-		codeDive: "CODEDIVE_XAI_API_KEY",
+		codedive: "CODEDIVE_XAI_API_KEY",
 		fallbacks: ["XAI_API_KEY"],
 	},
 	openrouter: {
-		codeDive: "CODEDIVE_OPENROUTER_API_KEY",
+		codedive: "CODEDIVE_OPENROUTER_API_KEY",
 		fallbacks: ["OPENROUTER_API_KEY"],
 	},
 	mistral: {
-		codeDive: "CODEDIVE_MISTRAL_API_KEY",
+		codedive: "CODEDIVE_MISTRAL_API_KEY",
 		fallbacks: ["MISTRAL_API_KEY"],
 	},
 	cerebras: {
-		codeDive: "CODEDIVE_CEREBRAS_API_KEY",
+		codedive: "CODEDIVE_CEREBRAS_API_KEY",
 		fallbacks: ["CEREBRAS_API_KEY"],
 	},
 	"github-copilot": {
-		codeDive: "CODEDIVE_GITHUB_TOKEN",
+		codedive: "CODEDIVE_GITHUB_TOKEN",
 		fallbacks: ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"],
 	},
 };

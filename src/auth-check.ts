@@ -36,7 +36,7 @@ export function checkAuth(storage: AuthStorage): AuthCheckResult {
 	// Check environment variables
 	for (const [provider, envVars] of Object.entries(ENV_VAR_MAP)) {
 		// Check CODEDIVE_ prefixed vars first
-		if (process.env[envVars.codeDive]) {
+		if (process.env[envVars.codedive]) {
 			return { hasAuth: true, provider, source: "env" };
 		}
 		// Check fallback env vars
