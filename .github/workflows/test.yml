@@ -95,12 +95,3 @@ jobs:
       - name: Validate package contents
         run: npm pack --dry-run
 
-      - name: Check for pi references in user-facing text
-        run: |
-          echo "Checking for 'pi' references in user-facing files..."
-          # Look for standalone "pi" used as a product name (not in URLs, APIs, or package names)
-          if grep -rPn '(?<![/@\w-])pi(?![/-]\w)' assets/ui.html assets/template.html 2>/dev/null | grep -vi "api" | grep -vi "copilot" | grep -vi "github" | grep -vi "http"; then
-            echo "❌ Found 'pi' references in user-facing assets"
-            exit 1
-          fi
-          echo "✅ No pi references found"

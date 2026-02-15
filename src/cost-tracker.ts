@@ -83,7 +83,7 @@ export class CostTracker {
 	}
 
 	/**
-	 * Build a pi-style status line:
+	 * Build a compact status line:
 	 *   ↑7.2k ↓295k R80M W3.1M $54.592 (provider) model-name
 	 */
 	static formatStatusLine(usage: TokenUsage, cost: number, model: string, provider?: string): string {

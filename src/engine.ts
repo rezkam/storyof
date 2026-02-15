@@ -222,7 +222,7 @@ async function createSession(targetPath: string, sessionManager?: SessionManager
 		noThemes: true,
 		additionalSkillPaths: getSkillPaths(targetPath),
 		skillsOverride: (base) => {
-			// Filter out any skills from pi directories
+			// Filter out any skills from host agent directories
 			const filtered = base.skills.filter((s) => {
 				const loc = (s as any).filePath || (s as any).location || "";
 				return !loc.includes("/.pi/") && !loc.includes("/.claude/");
