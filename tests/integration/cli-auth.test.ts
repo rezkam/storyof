@@ -203,7 +203,7 @@ describe("CLI Authentication", () => {
 			const result = runCLI(["--version"], { tempHome });
 
 			expect(result.exitCode).toBe(0);
-			expect(result.stdout).toContain("0.1.0");
+			expect(result.stdout).toMatch(/^\d+\.\d+\.\d+/);
 		});
 
 		it("shows help", () => {

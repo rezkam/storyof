@@ -10,6 +10,7 @@
  */
 
 import { Command, Option } from "commander";
+import { exec } from "node:child_process";
 import * as readline from "node:readline";
 import * as path from "node:path";
 import { APP_CMD, APP_VERSION, GLOBAL_DIR } from "./constants.js";
@@ -157,13 +158,34 @@ auth
 			await authService.oauthLogin(provider, {
 				onAuth: (info: { url: string; instructions?: string }) => {
 					logger.newline();
-					logger.info("Open this URL in your browser:");
-					logger.command(info.url);
-					logger.newline();
 					if (info.instructions) {
 						logger.hint(info.instructions);
 						logger.newline();
 					}
+					logger.info("Press Enter to open the login page in your browser...");
+					logger.newline();
+
+					const rl = readline.createInterface({
+						input: process.stdin,
+						output: process.stdout,
+					});
+					rl.question("", () => {
+						rl.close();
+						// Open URL safely using platform-native commands
+						const url = info.url;
+						const platform = process.platform;
+						if (platform === "darwin") {
+							exec(`open ${JSON.stringify(url)}`);
+						} else if (platform === "win32") {
+							exec(`start "" ${JSON.stringify(url)}`);
+						} else {
+							exec(`xdg-open ${JSON.stringify(url)}`);
+						}
+						logger.newline();
+						logger.info("If the browser didn't open, copy this URL manually:");
+						logger.command(url);
+						logger.newline();
+					});
 				},
 				onPrompt: (prompt: { message: string; isPassword?: boolean }) => {
 					return new Promise((resolve) => {
