@@ -47,6 +47,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:browser": "npx playwright test",
+    "test:e2e": "npx playwright test --config playwright.e2e.config.ts",
     "test:coverage": "vitest --coverage",
     "prepublishOnly": "npm run build && npm test",
     "release:patch": "node scripts/release.mjs patch",
