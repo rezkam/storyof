@@ -1,5 +1,5 @@
 /**
- * CodeDive — Agent log (persisted to disk).
+ * StoryOf — Agent log (persisted to disk).
  */
 
 import * as fs from "node:fs";

@@ -1,5 +1,5 @@
 /**
- * CodeDive — Core engine.
+ * StoryOf — Core engine.
  *
  * Manages the in-process agent session, HTTP/WS server, validation loop,
  * health monitoring, and auto-restart.  Replaces the old subprocess-based
@@ -212,7 +212,7 @@ async function createSession(targetPath: string, sessionManager?: SessionManager
 	// Create settings manager
 	const settingsManager = SettingsManager.create(targetPath, GLOBAL_DIR);
 
-	// Create resource loader with custom skill paths (only codedive directories)
+	// Create resource loader with custom skill paths (only storyof directories)
 	const resourceLoader = new DefaultResourceLoader({
 		cwd: targetPath,
 		agentDir: GLOBAL_DIR,
@@ -229,12 +229,12 @@ async function createSession(targetPath: string, sessionManager?: SessionManager
 			});
 			return { skills: filtered, diagnostics: base.diagnostics };
 		},
-		// Custom system prompt — CodeDive branding
+		// Custom system prompt — StoryOf branding
 		systemPrompt: S.allowEdits
-			? `You are CodeDive, a codebase architecture explorer. You read codebases, understand their structure, and generate comprehensive architecture documentation with diagrams. You also answer questions about code you've explored.
+			? `You are StoryOf, a codebase architecture explorer. You read codebases, understand their structure, and generate comprehensive architecture documentation with diagrams. You also answer questions about code you've explored.
 
 When responding to questions, use well-structured markdown: headings (##), bullet lists, fenced code blocks with language tags, tables, bold/italic for emphasis. Keep responses clear and organized.`
-			: `You are CodeDive, a codebase architecture explorer. You read codebases, understand their structure, and generate comprehensive architecture documentation with diagrams. You also answer questions about code you've explored.
+			: `You are StoryOf, a codebase architecture explorer. You read codebases, understand their structure, and generate comprehensive architecture documentation with diagrams. You also answer questions about code you've explored.
 
 IMPORTANT: You are running in READ-ONLY mode. You must NOT:
 - Edit, create, delete, or modify any files in the codebase
@@ -292,9 +292,9 @@ When responding to questions, use well-structured markdown: headings (##), bulle
 
 function getSkillPaths(targetPath: string): string[] {
 	const paths: string[] = [];
-	// Global: ~/.codedive/skills/
+	// Global: ~/.storyof/skills/
 	if (fs.existsSync(GLOBAL_SKILLS_DIR)) paths.push(GLOBAL_SKILLS_DIR);
-	// Project: .codedive/skills/
+	// Project: .storyof/skills/
 	const localSkills = path.join(targetPath, LOCAL_DIR_NAME, "skills");
 	if (fs.existsSync(localSkills)) paths.push(localSkills);
 	return paths;
@@ -690,7 +690,7 @@ function startServer(): Promise<number> {
 					const bodyPath = S.htmlPath.replace(/\.html$/, ".body.html");
 					const { title, body } = JSON.parse(fs.readFileSync(bodyPath, "utf-8"));
 					let doc = getTemplate()
-						.replace("{{TITLE}}", (title || "CodeDive").replace(/</g, "&lt;"))
+						.replace("{{TITLE}}", (title || "StoryOf").replace(/</g, "&lt;"))
 						.replace("{{CONTENT}}", body);
 					// Inject selection bridge for "Ask about this"
 					const selectionBridge = `<script>
@@ -939,7 +939,7 @@ function removePidFile(cwd: string) {
 }
 
 /**
- * Send SIGTERM to the running codedive process (from a separate terminal).
+ * Send SIGTERM to the running storyof process (from a separate terminal).
  * Returns true if a process was found and signalled.
  */
 export function stopExternal(cwd: string): boolean {
@@ -993,7 +993,7 @@ export interface ResumeOptions {
 }
 
 /**
- * Start a new codedive exploration.
+ * Start a new storyof exploration.
  */
 export async function start(opts: StartOptions): Promise<{ url: string; token: string }> {
 	if (S.session && S.server) {
@@ -1056,7 +1056,7 @@ export async function start(opts: StartOptions): Promise<{ url: string; token: s
 			if (errStr.includes("No API key") || errStr.includes("No model") || errStr.includes("Authentication")) {
 				broadcast({
 					type: "agent_exit",
-					error: `No API key configured.\n\nSet an API key:\n  codedive auth set anthropic sk-ant-xxx\n\nOr login with OAuth:\n  codedive auth login anthropic`,
+					error: `No API key configured.\n\nSet an API key:\n  storyof auth set anthropic sk-ant-xxx\n\nOr login with OAuth:\n  storyof auth login anthropic`,
 					crashCount: 0,
 					willRestart: false,
 					restartIn: null,
@@ -1072,7 +1072,7 @@ export async function start(opts: StartOptions): Promise<{ url: string; token: s
 		// Provide helpful auth error message
 		if (errStr.includes("No API key") || errStr.includes("No model") || errStr.includes("Authentication")) {
 			throw new Error(
-				`No API key configured.\n\n  Set an API key:\n    codedive auth set anthropic sk-ant-xxx\n\n  Or login with OAuth:\n    codedive auth login anthropic\n\n  Or set an environment variable:\n    export CODEDIVE_ANTHROPIC_API_KEY=sk-ant-xxx`,
+				`No API key configured.\n\n  Set an API key:\n    storyof auth set anthropic sk-ant-xxx\n\n  Or login with OAuth:\n    storyof auth login anthropic\n\n  Or set an environment variable:\n    export STORYOF_ANTHROPIC_API_KEY=sk-ant-xxx`,
 			);
 		}
 		throw err;

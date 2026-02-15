@@ -115,9 +115,9 @@ export function createSafeBashTool(cwd: string) {
 			if (violation) {
 				throw new Error(
 					`Command blocked (read-only mode): ${violation}\n\n` +
-					`CodeDive runs in read-only mode by default to protect your codebase.\n` +
+					`StoryOf runs in read-only mode by default to protect your codebase.\n` +
 					`The agent can read files and run analysis commands, but cannot modify files.\n\n` +
-					`To enable file editing, restart with: codedive --dangerously-allow-edits`
+					`To enable file editing, restart with: storyof --dangerously-allow-edits`
 				);
 			}
 			return context;

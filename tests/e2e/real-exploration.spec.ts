@@ -2,22 +2,22 @@
  * Real end-to-end tests — no mocks, no stubs.
  *
  * These tests:
- *   1. Create a temp HOME (never touch real ~/.codedive)
+ *   1. Create a temp HOME (never touch real ~/.storyof)
  *   2. Clone a small real repo into a temp directory
- *   3. Spawn the actual `codedive` CLI binary
+ *   3. Spawn the actual `storyof` CLI binary
  *   4. Parse the URL + token from CLI stdout
  *   5. Open a real Chromium browser via Playwright
  *   6. Wait for the real AI agent to explore and generate a document
  *   7. Verify the document appears in the browser
  *   8. Send real chat messages, verify real AI responses
  *   9. Test reconnect, page refresh, scroll-to-top pagination
- *  10. Verify session files on disk (.codedive/<id>/meta.json, document.md, etc.)
- *  11. Test `codedive stop` to shut down the agent
- *  12. Test `codedive resume` to restart
+ *  10. Verify session files on disk (.storyof/<id>/meta.json, document.md, etc.)
+ *  11. Test `storyof stop` to shut down the agent
+ *  12. Test `storyof resume` to restart
  *  13. Clean up everything (temp dirs, processes)
  *  14. Verify no files were written to the real home directory
  *
- * Requires: ANTHROPIC_API_KEY or CODEDIVE_ANTHROPIC_API_KEY in env.
+ * Requires: ANTHROPIC_API_KEY or STORYOF_ANTHROPIC_API_KEY in env.
  * These tests are SLOW (minutes) — run separately with:
  *   npm run test:e2e
  */
@@ -63,14 +63,14 @@ const TEST_REPOS = [
 // ═══════════════════════════════════════════════════════════════════════
 
 const API_KEY =
-	process.env.CODEDIVE_ANTHROPIC_API_KEY ||
+	process.env.STORYOF_ANTHROPIC_API_KEY ||
 	process.env.ANTHROPIC_API_KEY ||
 	"";
 
-/** Check if ~/.codedive/auth.json has valid credentials we can copy. */
+/** Check if ~/.storyof/auth.json has valid credentials we can copy. */
 function hasStoredAuth(): boolean {
 	try {
-		const authPath = path.join(os.homedir(), ".codedive", "auth.json");
+		const authPath = path.join(os.homedir(), ".storyof", "auth.json");
 		const data = JSON.parse(fs.readFileSync(authPath, "utf-8"));
 		return Object.keys(data).length > 0;
 	} catch {
@@ -87,7 +87,7 @@ test.skip(!HAS_AUTH, "Skipping E2E tests — no API key or stored auth found");
 
 function makeTempDir(label: string): string {
 	const id = crypto.randomBytes(6).toString("hex");
-	const dir = path.join(os.tmpdir(), `codedive-e2e-${label}-${id}`);
+	const dir = path.join(os.tmpdir(), `storyof-e2e-${label}-${id}`);
 	fs.mkdirSync(dir, { recursive: true });
 	return dir;
 }
@@ -100,8 +100,8 @@ function makeTempDir(label: string): string {
 function cleanEnv(tempHome: string): Record<string, string> {
 	// If no API key in env, copy auth.json from real home to temp home
 	if (!API_KEY) {
-		const realAuthPath = path.join(os.homedir(), ".codedive", "auth.json");
-		const tempAuthDir = path.join(tempHome, ".codedive");
+		const realAuthPath = path.join(os.homedir(), ".storyof", "auth.json");
+		const tempAuthDir = path.join(tempHome, ".storyof");
 		const tempAuthPath = path.join(tempAuthDir, "auth.json");
 		try {
 			fs.mkdirSync(tempAuthDir, { recursive: true });
@@ -117,14 +117,14 @@ function cleanEnv(tempHome: string): Record<string, string> {
 		ANTHROPIC_API_KEY: API_KEY,
 		// Blank all others to prevent leaking
 		OPENAI_API_KEY: "",
-		CODEDIVE_ANTHROPIC_API_KEY: "",
-		CODEDIVE_OPENAI_API_KEY: "",
+		STORYOF_ANTHROPIC_API_KEY: "",
+		STORYOF_OPENAI_API_KEY: "",
 	};
 }
 
-/** Snapshot the real ~/.codedive/auth.json content for later comparison. */
+/** Snapshot the real ~/.storyof/auth.json content for later comparison. */
 function snapshotRealAuth(): string | null {
-	const realAuthPath = path.join(os.homedir(), ".codedive", "auth.json");
+	const realAuthPath = path.join(os.homedir(), ".storyof", "auth.json");
 	try {
 		return fs.readFileSync(realAuthPath, "utf-8");
 	} catch {
@@ -133,7 +133,7 @@ function snapshotRealAuth(): string | null {
 }
 
 /**
- * Spawn the codedive CLI, wait for it to print URL + token, return both.
+ * Spawn the storyof CLI, wait for it to print URL + token, return both.
  * The process keeps running (agent working) until killed.
  */
 function spawnCodedive(
@@ -362,13 +362,13 @@ for (const repo of TEST_REPOS) {
 			expect(fullOutput).toContain("claude");
 		});
 
-		test("CLI creates .codedive directory in the repo", () => {
-			const codediveDir = path.join(repoDir, ".codedive");
-			expect(fs.existsSync(codediveDir)).toBe(true);
+		test("CLI creates .storyof directory in the repo", () => {
+			const storyofDir = path.join(repoDir, ".storyof");
+			expect(fs.existsSync(storyofDir)).toBe(true);
 		});
 
 		test("CLI creates PID file", () => {
-			const pidFile = path.join(repoDir, ".codedive", ".pid");
+			const pidFile = path.join(repoDir, ".storyof", ".pid");
 			expect(fs.existsSync(pidFile)).toBe(true);
 			const pidData = JSON.parse(fs.readFileSync(pidFile, "utf-8"));
 			expect(pidData.pid).toBe(cliProc!.pid);
@@ -429,14 +429,14 @@ for (const repo of TEST_REPOS) {
 		});
 
 		test("session files exist on disk after exploration", () => {
-			const codediveDir = path.join(repoDir, ".codedive");
-			const entries = fs.readdirSync(codediveDir).filter(
-				(e) => e !== ".pid" && fs.statSync(path.join(codediveDir, e)).isDirectory(),
+			const storyofDir = path.join(repoDir, ".storyof");
+			const entries = fs.readdirSync(storyofDir).filter(
+				(e) => e !== ".pid" && fs.statSync(path.join(storyofDir, e)).isDirectory(),
 			);
 			expect(entries.length).toBeGreaterThanOrEqual(1);
 
 			const sessionId = entries[0];
-			const sessionPath = path.join(codediveDir, sessionId);
+			const sessionPath = path.join(storyofDir, sessionId);
 
 			// meta.json should exist
 			const metaPath = path.join(sessionPath, "meta.json");
@@ -647,10 +647,10 @@ for (const repo of TEST_REPOS) {
 
 		// ── Phase 7: Stop command ────────────────────────────────────
 
-		test("codedive stop shuts down the agent", async () => {
+		test("storyof stop shuts down the agent", async () => {
 			const env = cleanEnv(tempHome);
 
-			// Run codedive stop
+			// Run storyof stop
 			const result = execSync(`node ${CLI_PATH} stop`, {
 				cwd: repoDir,
 				env,
@@ -661,7 +661,7 @@ for (const repo of TEST_REPOS) {
 			expect(result).toContain("stopped");
 
 			// PID file should be removed
-			const pidFile = path.join(repoDir, ".codedive", ".pid");
+			const pidFile = path.join(repoDir, ".storyof", ".pid");
 			expect(fs.existsSync(pidFile)).toBe(false);
 
 			// Wait for process to exit
@@ -676,20 +676,20 @@ for (const repo of TEST_REPOS) {
 		});
 
 		test("session files persist after stop", () => {
-			const codediveDir = path.join(repoDir, ".codedive");
-			const entries = fs.readdirSync(codediveDir).filter(
-				(e) => e !== ".pid" && fs.statSync(path.join(codediveDir, e)).isDirectory(),
+			const storyofDir = path.join(repoDir, ".storyof");
+			const entries = fs.readdirSync(storyofDir).filter(
+				(e) => e !== ".pid" && fs.statSync(path.join(storyofDir, e)).isDirectory(),
 			);
 			expect(entries.length).toBeGreaterThanOrEqual(1);
 
-			const sessionPath = path.join(codediveDir, entries[0]);
+			const sessionPath = path.join(storyofDir, entries[0]);
 			expect(fs.existsSync(path.join(sessionPath, "meta.json"))).toBe(true);
 			expect(fs.existsSync(path.join(sessionPath, "agent.log"))).toBe(true);
 		});
 
 		// ── Phase 8: Resume ──────────────────────────────────────────
 
-		test("codedive resume restarts the session", async ({ page }) => {
+		test("storyof resume restarts the session", async ({ page }) => {
 			const env = cleanEnv(tempHome);
 
 			// Resume the session
@@ -748,7 +748,7 @@ for (const repo of TEST_REPOS) {
 			}
 		});
 
-		test("real ~/.codedive/auth.json is unchanged", () => {
+		test("real ~/.storyof/auth.json is unchanged", () => {
 			const realAuthAfter = snapshotRealAuth();
 			expect(realAuthAfter).toBe(realAuthBefore);
 		});
@@ -757,7 +757,7 @@ for (const repo of TEST_REPOS) {
 			// The GLOBAL_DIR in constants.ts uses os.homedir().
 			// Since we set HOME to tempHome, the real home should be untouched.
 			// But let's verify nothing leaked.
-			const realCodediveDir = path.join(os.homedir(), ".codedive");
+			const realCodediveDir = path.join(os.homedir(), ".storyof");
 
 			// If it didn't exist before, it shouldn't exist now either
 			// (we can't know for sure if user had it, so we check auth.json content instead)

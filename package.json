@@ -1,16 +1,16 @@
 {
-  "name": "codedive",
-  "version": "0.2.0",
+  "name": "storyof",
+  "version": "0.1.0",
   "type": "module",
   "description": "Explore any codebase — generate rich architecture docs with diagrams, then chat with an AI that already read the code",
   "license": "Apache-2.0",
   "author": "Reza Kamali",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rezkam/codedive"
+    "url": "https://github.com/rezkam/storyof"
   },
   "bin": {
-    "codedive": "./dist/cli.js"
+    "storyof": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,7 +21,7 @@
     "mermaid",
     "ai",
     "agent",
-    "codedive"
+    "storyof"
   ],
   "exports": {
     ".": {

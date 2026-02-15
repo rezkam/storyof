@@ -88,7 +88,7 @@ const MARKDOWN_SUFFIX =
 
 function makeTempDir(): string {
 	const id = crypto.randomBytes(8).toString("hex");
-	const dir = path.join(os.tmpdir(), `codedive-e2e-${id}`);
+	const dir = path.join(os.tmpdir(), `storyof-e2e-${id}`);
 	fs.mkdirSync(dir, { recursive: true });
 	return dir;
 }
@@ -260,7 +260,7 @@ graph TD
 4. Response sent back
 `;
 
-	const mdPath = path.join(tempDir, ".codedive", "test-session", "document.md");
+	const mdPath = path.join(tempDir, ".storyof", "test-session", "document.md");
 	fs.mkdirSync(path.dirname(mdPath), { recursive: true });
 	fs.writeFileSync(mdPath, mdContent);
 

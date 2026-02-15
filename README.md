@@ -1,22 +1,22 @@
-# CodeDive
+# StoryOf
 
-[![Test](https://github.com/rezkam/codedive/actions/workflows/test.yml/badge.svg)](https://github.com/rezkam/codedive/actions/workflows/test.yml)
-[![Release](https://github.com/rezkam/codedive/actions/workflows/release.yml/badge.svg)](https://github.com/rezkam/codedive/actions/workflows/release.yml)
-[![npm version](https://badge.fury.io/js/codedive.svg)](https://www.npmjs.com/package/codedive)
-[![npm downloads](https://img.shields.io/npm/dm/codedive.svg)](https://www.npmjs.com/package/codedive)
+[![Test](https://github.com/rezkam/storyof/actions/workflows/test.yml/badge.svg)](https://github.com/rezkam/storyof/actions/workflows/test.yml)
+[![Release](https://github.com/rezkam/storyof/actions/workflows/release.yml/badge.svg)](https://github.com/rezkam/storyof/actions/workflows/release.yml)
+[![npm version](https://badge.fury.io/js/storyof.svg)](https://www.npmjs.com/package/storyof)
+[![npm downloads](https://img.shields.io/npm/dm/storyof.svg)](https://www.npmjs.com/package/storyof)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**Run `codedive` in any project and an AI agent reads your codebase, generates a rich HTML architecture doc with mermaid diagrams, then stays around as a chat partner you can ask questions about the code.**
+**Run `storyof` in any project and an AI agent reads your codebase, generates a rich HTML architecture doc with mermaid diagrams, then stays around as a chat partner you can ask questions about the code.**
 
 You join a new project. There's no architecture doc. The README says "see the code." You spend half a day clicking through files trying to understand how anything connects to anything.
 
-CodeDive fixes that. It spawns an AI agent that reads your entire codebase, builds a mental model of the architecture, and writes it up as a rich HTML document with mermaid diagrams, module breakdowns, data flow explanations, and real code walkthroughs. You watch it happen live in your browser.
+StoryOf fixes that. It spawns an AI agent that reads your entire codebase, builds a mental model of the architecture, and writes it up as a rich HTML document with mermaid diagrams, module breakdowns, data flow explanations, and real code walkthroughs. You watch it happen live in your browser.
 
 But the document is just the starting point. Once the agent has explored the codebase, it **stays around as a knowledgeable colleague**. The chat sidebar lets you ask follow-up questions, dig into specifics, or ask it to explain something differently. The agent already has context from reading the actual source, so the conversation is grounded in what's really in the code, not hallucinated guesses.
 
 ## See It in Action
 
-Here's CodeDive exploring [karpathy/nanochat](https://github.com/karpathy/nanochat) — a full-stack ChatGPT clone covering tokenization, pretraining, fine-tuning, RL, and serving.
+Here's StoryOf exploring [karpathy/nanochat](https://github.com/karpathy/nanochat) — a full-stack ChatGPT clone covering tokenization, pretraining, fine-tuning, RL, and serving.
 
 ### Architecture Document with Diagrams
 
@@ -49,7 +49,7 @@ Ask follow-up questions after the document is generated. The agent responds with
 ### Standalone CLI
 
 ```bash
-npm install -g codedive
+npm install -g storyof
 ```
 
 ### Tab Completion (Optional)
@@ -58,27 +58,27 @@ Enable shell completion for commands, providers, and flags:
 
 ```bash
 # Bash
-codedive completion bash >> ~/.bashrc
+storyof completion bash >> ~/.bashrc
 source ~/.bashrc
 
 # Zsh
-codedive completion zsh > ~/.zsh/completions/_codedive
-# Or for Oh My Zsh: codedive completion zsh > ~/.oh-my-zsh/completions/_codedive
+storyof completion zsh > ~/.zsh/completions/_storyof
+# Or for Oh My Zsh: storyof completion zsh > ~/.oh-my-zsh/completions/_storyof
 
 # Fish
-codedive completion fish > ~/.config/fish/completions/codedive.fish
+storyof completion fish > ~/.config/fish/completions/storyof.fish
 ```
 
 After installing, you can tab-complete:
-- Commands: `codedive auth <TAB>`
-- Providers: `codedive auth set <TAB>`
-- OAuth providers: `codedive auth login <TAB>`
-- Flags: `codedive --<TAB>`
+- Commands: `storyof auth <TAB>`
+- Providers: `storyof auth set <TAB>`
+- OAuth providers: `storyof auth login <TAB>`
+- Flags: `storyof --<TAB>`
 
 ## Quick Start
 
 ```bash
-codedive
+storyof
 ```
 
 That's it. A browser tab opens with a split-panel UI. The agent starts reading your codebase and generating the document on the left. The URL and session token are printed in your terminal. Paste the token in the browser to connect.
@@ -103,12 +103,12 @@ That's it. A browser tab opens with a split-panel UI. The agent starts reading y
 - **Auto-restart**: if the agent crashes, it restarts automatically (up to 3 times with exponential backoff)
 - **Health monitoring**: server pings the agent every 15s; if it stops responding, the UI shows "Unresponsive" immediately
 - **Mermaid validation**: every diagram is validated with `mermaid-cli`; broken diagrams get sent back to the agent to fix automatically (up to 3 cycles)
-- **Session persistence**: stop and come back later with `codedive resume`
+- **Session persistence**: stop and come back later with `storyof resume`
 
 ## Usage
 
 ```
-codedive [prompt] [--path ./subdir] [--depth level] [--model name]
+storyof [prompt] [--path ./subdir] [--depth level] [--model name]
 ```
 
 Everything that isn't a flag is your prompt. No quotes needed.
@@ -127,10 +127,10 @@ Everything that isn't a flag is your prompt. No quotes needed.
 Explores the entire codebase: project structure, entry points, all major modules, dependency graph.
 
 ```bash
-codedive                              # explore everything
-codedive --depth deep                 # more diagrams, more code examples
-codedive --depth shallow              # quick overview, faster
-codedive --path ./src                 # full exploration scoped to ./src
+storyof                              # explore everything
+storyof --depth deep                 # more diagrams, more code examples
+storyof --depth shallow              # quick overview, faster
+storyof --path ./src                 # full exploration scoped to ./src
 ```
 
 ### Focused Exploration (with prompt)
@@ -138,9 +138,9 @@ codedive --path ./src                 # full exploration scoped to ./src
 Give it a question and it explores **only** what's relevant, skipping unrelated modules entirely. Faster than a full exploration.
 
 ```bash
-codedive how does authentication work
-codedive explain the WebSocket reconnection logic
-codedive error handling patterns --path ./src --depth deep
+storyof how does authentication work
+storyof explain the WebSocket reconnection logic
+storyof error handling patterns --path ./src --depth deep
 ```
 
 ### Scoping with `--path`
@@ -148,9 +148,9 @@ codedive error handling patterns --path ./src --depth deep
 Narrow exploration to specific subdirectories. The agent reads project config for context but focuses the document on the scoped area.
 
 ```bash
-codedive --path ./src/api             # explore only the API module
-codedive --path ./src --path ./lib    # focus on src and lib
-codedive auth flow --path ./src/auth  # focused prompt + scoped directory
+storyof --path ./src/api             # explore only the API module
+storyof --path ./src --path ./lib    # focus on src and lib
+storyof auth flow --path ./src/auth  # focused prompt + scoped directory
 ```
 
 ### Depth Levels
@@ -165,11 +165,11 @@ codedive auth flow --path ./src/auth  # focused prompt + scoped directory
 
 | Command | What it does |
 |---------|-------------|
-| `codedive` | Start a new exploration |
-| `codedive resume` | Resume a previous session in this directory |
-| `codedive stop` | Stop the running agent |
+| `storyof` | Start a new exploration |
+| `storyof resume` | Resume a previous session in this directory |
+| `storyof stop` | Stop the running agent |
 
-`codedive resume` shows a picker if you have multiple sessions:
+`storyof resume` shows a picker if you have multiple sessions:
 
 ```
 Resume which session?
@@ -180,12 +180,12 @@ Resume which session?
 
 ## Authentication
 
-CodeDive needs an API key for your chosen LLM provider.
+StoryOf needs an API key for your chosen LLM provider.
 
 ### Option 1: Environment Variables
 
 ```bash
-export CODEDIVE_ANTHROPIC_API_KEY=sk-ant-xxx
+export STORYOF_ANTHROPIC_API_KEY=sk-ant-xxx
 # or use standard env vars as fallback:
 export ANTHROPIC_API_KEY=sk-ant-xxx
 ```
@@ -193,45 +193,45 @@ export ANTHROPIC_API_KEY=sk-ant-xxx
 ### Option 2: Store a Key
 
 ```bash
-codedive auth set anthropic sk-ant-xxx
+storyof auth set anthropic sk-ant-xxx
 ```
 
 ### Option 3: OAuth Login
 
 ```bash
-codedive auth login anthropic      # Claude Pro/Max
-codedive auth login github-copilot # GitHub Copilot
-codedive auth login google         # Google Gemini CLI
-codedive auth login antigravity    # Google Cloud
-codedive auth login openai-codex   # ChatGPT OAuth
+storyof auth login anthropic      # Claude Pro/Max
+storyof auth login github-copilot # GitHub Copilot
+storyof auth login google         # Google Gemini CLI
+storyof auth login antigravity    # Google Cloud
+storyof auth login openai-codex   # ChatGPT OAuth
 ```
 
 ### Manage Credentials
 
 ```bash
-codedive auth list                 # show configured providers
-codedive auth logout anthropic     # remove credentials
+storyof auth list                 # show configured providers
+storyof auth logout anthropic     # remove credentials
 ```
 
-Credentials are stored in `~/.codedive/auth.json` with 600 permissions.
+Credentials are stored in `~/.storyof/auth.json` with 600 permissions.
 
 ### Supported Environment Variables
 
-| CodeDive Variable | Standard Fallback |
+| StoryOf Variable | Standard Fallback |
 |---|---|
-| `CODEDIVE_ANTHROPIC_API_KEY` | `ANTHROPIC_API_KEY` |
-| `CODEDIVE_OPENAI_API_KEY` | `OPENAI_API_KEY` |
-| `CODEDIVE_GEMINI_API_KEY` | `GEMINI_API_KEY` |
-| `CODEDIVE_GROQ_API_KEY` | `GROQ_API_KEY` |
-| `CODEDIVE_XAI_API_KEY` | `XAI_API_KEY` |
-| `CODEDIVE_OPENROUTER_API_KEY` | `OPENROUTER_API_KEY` |
-| `CODEDIVE_MISTRAL_API_KEY` | `MISTRAL_API_KEY` |
-| `CODEDIVE_CEREBRAS_API_KEY` | `CEREBRAS_API_KEY` |
-| `CODEDIVE_GITHUB_TOKEN` | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN` |
+| `STORYOF_ANTHROPIC_API_KEY` | `ANTHROPIC_API_KEY` |
+| `STORYOF_OPENAI_API_KEY` | `OPENAI_API_KEY` |
+| `STORYOF_GEMINI_API_KEY` | `GEMINI_API_KEY` |
+| `STORYOF_GROQ_API_KEY` | `GROQ_API_KEY` |
+| `STORYOF_XAI_API_KEY` | `XAI_API_KEY` |
+| `STORYOF_OPENROUTER_API_KEY` | `OPENROUTER_API_KEY` |
+| `STORYOF_MISTRAL_API_KEY` | `MISTRAL_API_KEY` |
+| `STORYOF_CEREBRAS_API_KEY` | `CEREBRAS_API_KEY` |
+| `STORYOF_GITHUB_TOKEN` | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN` |
 
 ## Token Usage & Costs
 
-CodeDive tracks token usage per-request and per-session:
+StoryOf tracks token usage per-request and per-session:
 
 - **Per-request**: input tokens, output tokens, cache read/creation tokens
 - **Per-session**: cumulative totals with estimated cost in dollars
@@ -251,7 +251,7 @@ Sessions are stored locally in your project:
 
 ```
 your-project/
-  .codedive/
+  .storyof/
     a3f29b12/          # session 1
       document.md      # generated markdown
       document.html    # rendered architecture doc
@@ -261,15 +261,15 @@ your-project/
       ...
 ```
 
-- **Resume**: `codedive resume` to pick up where you left off
-- **Multiple concurrent**: run separate `codedive` instances in different terminals
+- **Resume**: `storyof resume` to pick up where you left off
+- **Multiple concurrent**: run separate `storyof` instances in different terminals
 - **No conflicts**: each gets its own port and session
 
 ## Configuration
 
 ### Global Settings
 
-`~/.codedive/settings.json`:
+`~/.storyof/settings.json`:
 
 ```json
 {
@@ -282,19 +282,19 @@ your-project/
 
 ### Project Settings
 
-`.codedive/settings.json` — overrides global settings for this project.
+`.storyof/settings.json` — overrides global settings for this project.
 
 ### Custom Skills
 
 Add custom skills to extend the agent's capabilities:
 
-- Global: `~/.codedive/skills/`
-- Project: `.codedive/skills/`
+- Global: `~/.storyof/skills/`
+- Project: `.storyof/skills/`
 
 ## How It Works
 
 ```
-Terminal (codedive CLI)
+Terminal (storyof CLI)
     ↕ In-process agent session
 Agent Runtime (reads files, runs tools)
     ↕ Events
@@ -303,7 +303,7 @@ HTTP + WebSocket Server
 Browser (split-panel UI)
 ```
 
-1. You run `codedive` and the CLI creates an in-process agent session and starts an HTTP + WebSocket server
+1. You run `storyof` and the CLI creates an in-process agent session and starts an HTTP + WebSocket server
 2. The agent reads files, follows imports, and builds understanding — streaming events to the browser
 3. When the agent writes a markdown document, the system renders it to styled HTML
 4. Mermaid diagrams are validated; broken ones are sent back to the agent for auto-fix
@@ -312,7 +312,7 @@ Browser (split-panel UI)
 
 ## Safety: Read-Only by Default
 
-CodeDive runs in **read-only mode** by default. The agent can read your files, run analysis commands (grep, find, git log, etc.), and generate architecture documents — but it **cannot modify, create, or delete** any files in your codebase.
+StoryOf runs in **read-only mode** by default. The agent can read your files, run analysis commands (grep, find, git log, etc.), and generate architecture documents — but it **cannot modify, create, or delete** any files in your codebase.
 
 This means:
 - No `edit` or `write` tools are available to the agent
@@ -321,13 +321,13 @@ This means:
 - Git write operations (commit, push, merge) are blocked
 - Inline script execution (python -c, node -e) is blocked
 
-The only file the agent writes is its own architecture document in the `.codedive/` session directory.
+The only file the agent writes is its own architecture document in the `.storyof/` session directory.
 
 If you want the agent to make changes to your codebase (e.g., apply suggested refactors), you can opt in:
 
 ```bash
-codedive --dangerously-allow-edits
-codedive resume --dangerously-allow-edits
+storyof --dangerously-allow-edits
+storyof resume --dangerously-allow-edits
 ```
 
 This enables the full tool set: read, bash (unrestricted), edit, and write.
@@ -335,16 +335,6 @@ This enables the full tool set: read, bash (unrestricted), edit, and write.
 ## Security
 
 The server generates a random session token on startup, printed in your terminal. Paste it in the browser to connect. This prevents other localhost processes from accessing the document or controlling the agent.
-
-## Pi Extension
-
-If you use [Pi](https://github.com/badlogic/pi) as your coding agent, there's a separate extension that wraps CodeDive — uses Pi's existing auth, no global install needed:
-
-```bash
-pi install git:github.com/rezkam/pi-codedive
-```
-
-See [pi-codedive](https://github.com/rezkam/pi-codedive) for details.
 
 ## License
 

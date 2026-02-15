@@ -81,7 +81,7 @@ const MARKDOWN_SUFFIX =
 
 function makeTempDir(): string {
 	const id = crypto.randomBytes(8).toString("hex");
-	const dir = path.join(os.tmpdir(), `codedive-browser-test-${id}`);
+	const dir = path.join(os.tmpdir(), `storyof-browser-test-${id}`);
 	fs.mkdirSync(dir, { recursive: true });
 	return dir;
 }

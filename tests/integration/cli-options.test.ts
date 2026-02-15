@@ -22,7 +22,7 @@ const CLI_PATH = path.resolve(__dirname, "../../dist/cli.js");
 
 function makeTempDir(): string {
 	const id = crypto.randomBytes(8).toString("hex");
-	const dir = path.join(os.tmpdir(), `codedive-opts-${id}`);
+	const dir = path.join(os.tmpdir(), `storyof-opts-${id}`);
 	fs.mkdirSync(dir, { recursive: true });
 	return dir;
 }
@@ -34,7 +34,7 @@ function cleanEnv(tempHome: string, overrides: Record<string, string> = {}): Rec
 		NODE_ENV: "test",
 		ANTHROPIC_API_KEY: "",
 		OPENAI_API_KEY: "",
-		CODEDIVE_ANTHROPIC_API_KEY: "",
+		STORYOF_ANTHROPIC_API_KEY: "",
 		...overrides,
 	};
 }
@@ -63,7 +63,7 @@ describe("CLI options and commands", () => {
 
 	beforeEach(() => {
 		tempHome = makeTempDir();
-		const ddDir = path.join(tempHome, ".codedive");
+		const ddDir = path.join(tempHome, ".storyof");
 		fs.mkdirSync(ddDir, { recursive: true });
 		fs.writeFileSync(path.join(ddDir, "auth.json"), "{}", { mode: 0o600 });
 	});
@@ -322,21 +322,21 @@ describe("CLI options and commands", () => {
 		it("generates bash completion", () => {
 			const r = run(["completion", "bash"], { tempHome });
 			expect(r.exitCode).toBe(0);
-			expect(r.stdout).toContain("_codedive_completions");
+			expect(r.stdout).toContain("_storyof_completions");
 			expect(r.stdout).toContain("complete -o default -F");
 		});
 
 		it("generates zsh completion", () => {
 			const r = run(["completion", "zsh"], { tempHome });
 			expect(r.exitCode).toBe(0);
-			expect(r.stdout).toContain("#compdef codedive");
-			expect(r.stdout).toContain("_codedive");
+			expect(r.stdout).toContain("#compdef storyof");
+			expect(r.stdout).toContain("_storyof");
 		});
 
 		it("generates fish completion", () => {
 			const r = run(["completion", "fish"], { tempHome });
 			expect(r.exitCode).toBe(0);
-			expect(r.stdout).toContain("complete -c codedive");
+			expect(r.stdout).toContain("complete -c storyof");
 		});
 
 		it("rejects unknown shell", () => {
@@ -559,7 +559,7 @@ describe("Completion script correctness", () => {
 
 		it("--completion-data sessions lists sessions when they exist", () => {
 			// Create a session in the temp home
-			const sessionDir = path.join(tempHome, ".codedive", "abc123");
+			const sessionDir = path.join(tempHome, ".storyof", "abc123");
 			fs.mkdirSync(sessionDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(sessionDir, "meta.json"),
@@ -579,7 +579,7 @@ describe("Completion script correctness", () => {
 		});
 
 		it("--completion-data sessions-zsh includes session description", () => {
-			const sessionDir = path.join(tempHome, ".codedive", "def456");
+			const sessionDir = path.join(tempHome, ".storyof", "def456");
 			fs.mkdirSync(sessionDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(sessionDir, "meta.json"),
@@ -654,7 +654,7 @@ describe("Completion script correctness", () => {
 
 describe("Test isolation safety", () => {
 	const realHome = os.homedir();
-	const realAuthPath = path.join(realHome, ".codedive", "auth.json");
+	const realAuthPath = path.join(realHome, ".storyof", "auth.json");
 	let authBefore: string | null;
 
 	beforeEach(() => {
@@ -663,7 +663,7 @@ describe("Test isolation safety", () => {
 		} catch { authBefore = null; }
 	});
 
-	it("tests never write to real ~/.codedive/auth.json", () => {
+	it("tests never write to real ~/.storyof/auth.json", () => {
 		try {
 			const authAfter = fs.existsSync(realAuthPath) ? fs.readFileSync(realAuthPath, "utf-8") : null;
 			expect(authAfter).toBe(authBefore);
@@ -685,7 +685,7 @@ describe("Test isolation safety", () => {
 		});
 
 		// Verify it wrote to temp, not real home
-		const tempAuth = path.join(tempDir, ".codedive", "auth.json");
+		const tempAuth = path.join(tempDir, ".storyof", "auth.json");
 		if (fs.existsSync(tempAuth)) {
 			const contents = fs.readFileSync(tempAuth, "utf-8");
 			expect(contents).toContain("test-isolation-key");

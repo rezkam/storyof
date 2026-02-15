@@ -1,9 +1,9 @@
 /**
- * CodeDive — Programmatic API.
+ * StoryOf — Programmatic API.
  *
  * @example
  * ```typescript
- * import { start, stop, getState } from "codedive";
+ * import { start, stop, getState } from "storyof";
  *
  * const { url, token } = await start({
  *   cwd: "/path/to/project",

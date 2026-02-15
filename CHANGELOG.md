@@ -1,13 +1,11 @@
 # Changelog
 
-## [Unreleased]
-
-All notable changes to CodeDive will be documented in this file.
+All notable changes to StoryOf will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-02-15
+## [Unreleased]
 
 ### Added
 
@@ -21,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Renamed project** — `deep-dive` → `codedive` / CodeDive across all source, CLI commands, env vars, config directories
+- **Renamed project** — `deep-dive` → `storyof` / StoryOf across all source, CLI commands, env vars, config directories
 
 ## [0.1.0] - 2026-02-14
 
@@ -31,13 +29,13 @@ Standalone CLI tool for automated codebase architecture documentation.
 
 ### Added
 
-- **CLI** — `codedive [prompt]` with `--depth`, `--path`, `--model` flags
+- **CLI** — `storyof [prompt]` with `--depth`, `--path`, `--model` flags
 - **Commands** — `resume`, `stop`, `auth set/login/logout/list`, `completion`
 - **Shell completion** — bash, zsh, fish with dynamic model + session suggestions
 - **In-process AI agent** — uses `@mariozechner/pi-coding-agent` SDK directly
 - **Browser UI** — split-panel with live document + chat sidebar
 - **Mermaid diagrams** — validated with mermaid-cli, auto-fixed up to 3 cycles
-- **Session management** — stored in `.codedive/`, resumable
+- **Session management** — stored in `.storyof/`, resumable
 - **Cost tracking** — per-request and session-total token counts + estimated cost
 - **9 API key providers** — anthropic, openai, google, groq, xai, openrouter, mistral, cerebras, github-copilot
 - **5 OAuth providers** — anthropic, github-copilot, google, antigravity, openai-codex

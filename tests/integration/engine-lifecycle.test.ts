@@ -44,7 +44,7 @@ async function waitForCondition(fn: () => boolean, timeoutMs = 2000): Promise<vo
 
 function makeTempDir(): string {
 	const id = crypto.randomBytes(8).toString("hex");
-	const dir = path.join(os.tmpdir(), `codedive-engine-${id}`);
+	const dir = path.join(os.tmpdir(), `storyof-engine-${id}`);
 	fs.mkdirSync(dir, { recursive: true });
 	return dir;
 }
@@ -1117,7 +1117,7 @@ describe("Engine lifecycle (real server)", () => {
 			handleEvent({ type: "agent_start" } as any);
 
 			// Create the .md file on disk so the detection logic finds it
-			const mdPath = path.join(tempDir, ".codedive", "sessions", "test", "doc.md");
+			const mdPath = path.join(tempDir, ".storyof", "sessions", "test", "doc.md");
 			fs.mkdirSync(path.dirname(mdPath), { recursive: true });
 			fs.writeFileSync(mdPath, "# Test\n\nSome content");
 

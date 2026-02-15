@@ -1,5 +1,5 @@
 /**
- * CodeDive — WebSocket helpers (RFC 6455).
+ * StoryOf — WebSocket helpers (RFC 6455).
  */
 
 import * as crypto from "node:crypto";

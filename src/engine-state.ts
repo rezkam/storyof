@@ -1,7 +1,7 @@
 /**
  * Engine state machine — extracted from engine.ts for testability.
  *
- * This module defines the lifecycle states of the CodeDive system
+ * This module defines the lifecycle states of the StoryOf system
  * (server + agent as a single unit) and provides a testable state
  * machine that can be exercised without real HTTP servers or AI models.
  *
@@ -118,7 +118,7 @@ export interface BroadcastEvent {
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * Testable state machine for the CodeDive engine.
+ * Testable state machine for the StoryOf engine.
  *
  * This models the lifecycle without real I/O — no HTTP, no WebSocket,
  * no agent sessions. All side effects are captured as events that can

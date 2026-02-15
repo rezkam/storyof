@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CodeDive CLI - Production-grade TypeScript CLI application.
+ * StoryOf CLI - Production-grade TypeScript CLI application.
  *
  * Architecture:
  * - commander: Command parsing and routing

@@ -20,7 +20,7 @@ const CLI_PATH = path.resolve(__dirname, "../../dist/cli.js");
 
 function makeTempDir(): string {
 	const id = crypto.randomBytes(8).toString("hex");
-	const dir = path.join(os.tmpdir(), `codedive-readiness-${id}`);
+	const dir = path.join(os.tmpdir(), `storyof-readiness-${id}`);
 	fs.mkdirSync(dir, { recursive: true });
 	return dir;
 }
@@ -32,7 +32,7 @@ function cleanEnv(tempHome: string, overrides: Record<string, string> = {}): Rec
 		NODE_ENV: "test",
 		ANTHROPIC_API_KEY: "",
 		OPENAI_API_KEY: "",
-		CODEDIVE_ANTHROPIC_API_KEY: "",
+		STORYOF_ANTHROPIC_API_KEY: "",
 		...overrides,
 	};
 }
@@ -184,7 +184,7 @@ describe("Startup readiness", () => {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function setupFakeAuth(tempHome: string): void {
-	const ddDir = path.join(tempHome, ".codedive");
+	const ddDir = path.join(tempHome, ".storyof");
 	fs.mkdirSync(ddDir, { recursive: true });
 	fs.writeFileSync(
 		path.join(ddDir, "auth.json"),

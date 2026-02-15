@@ -38,23 +38,23 @@ jobs:
         run: npm pack
 
       - name: Install globally from tarball
-        run: npm install -g codedive-*.tgz
+        run: npm install -g storyof-*.tgz
 
       - name: Verify installation
         run: |
-          which codedive
-          codedive --version
-          codedive --help
+          which storyof
+          storyof --version
+          storyof --help
 
       - name: Test auth commands
         run: |
-          codedive auth --help
-          codedive auth set anthropic test-key
-          codedive auth list
-          codedive auth logout anthropic
+          storyof auth --help
+          storyof auth set anthropic test-key
+          storyof auth list
+          storyof auth logout anthropic
 
       - name: Cleanup
-        run: npm uninstall -g codedive
+        run: npm uninstall -g storyof
 
   e2e-cli:
     name: CLI Commands / ${{ matrix.os }}

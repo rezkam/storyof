@@ -1,7 +1,7 @@
 /**
- * CodeDive — Session metadata management.
+ * StoryOf — Session metadata management.
  *
- * Stores session info in .codedive/<session-id>/meta.json for resume/listing.
+ * Stores session info in .storyof/<session-id>/meta.json for resume/listing.
  */
 
 import * as fs from "node:fs";
@@ -38,13 +38,13 @@ export function saveMeta(meta: SessionMeta): void {
 /** Load all sessions for a project directory */
 export function loadLocalSessions(targetPath: string): SessionMeta[] {
 	const sessions: SessionMeta[] = [];
-	const codediveDir = path.join(targetPath, LOCAL_DIR_NAME);
+	const storyofDir = path.join(targetPath, LOCAL_DIR_NAME);
 	try {
-		if (!fs.existsSync(codediveDir)) return sessions;
-		for (const entry of fs.readdirSync(codediveDir)) {
-			const metaFile = path.join(codediveDir, entry, "meta.json");
+		if (!fs.existsSync(storyofDir)) return sessions;
+		for (const entry of fs.readdirSync(storyofDir)) {
+			const metaFile = path.join(storyofDir, entry, "meta.json");
 			try {
-				if (!fs.statSync(path.join(codediveDir, entry)).isDirectory()) continue;
+				if (!fs.statSync(path.join(storyofDir, entry)).isDirectory()) continue;
 				const meta: SessionMeta = JSON.parse(fs.readFileSync(metaFile, "utf-8"));
 				if (!meta.id) meta.id = entry;
 				if (!meta.targetPath) meta.targetPath = targetPath;

@@ -204,7 +204,7 @@ export class CommandHandler {
 			);
 
 			this.logger.newline();
-			this.logger.section("🔍 CodeDive");
+			this.logger.section("🔍 StoryOf");
 			this.logger.newline();
 			this.logger.keyValue("Resumed", formatSessionLabel(selectedSession));
 			this.logger.keyValue("URL", url);
@@ -238,7 +238,7 @@ export class CommandHandler {
 		options: StartOptions,
 	): void {
 		this.logger.newline();
-		this.logger.section("🔍 CodeDive");
+		this.logger.section("🔍 StoryOf");
 		this.logger.newline();
 		this.logger.keyValue("URL", url);
 		this.logger.keyValue("Token", token);
@@ -262,7 +262,7 @@ export class CommandHandler {
 	private showAuthInstructions(): void {
 		this.logger.error("No API credentials found");
 		this.logger.newline();
-		this.logger.info("You need to authenticate before using CodeDive.");
+		this.logger.info("You need to authenticate before using StoryOf.");
 		this.logger.newline();
 
 		this.logger.section("Option 1: API Keys (Direct access)");
@@ -307,7 +307,7 @@ export class CommandHandler {
 		this.logger.newline();
 
 		this.logger.section("Option 3: Environment Variables");
-		this.logger.command(`export CODEDIVE_ANTHROPIC_API_KEY=sk-ant-xxx`);
+		this.logger.command(`export STORYOF_ANTHROPIC_API_KEY=sk-ant-xxx`);
 		this.logger.command(`export ANTHROPIC_API_KEY=sk-ant-xxx`);
 		this.logger.newline();
 

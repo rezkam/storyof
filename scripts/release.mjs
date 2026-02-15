@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Release script for codedive
+ * Release script for storyof
  *
  * Usage: node scripts/release.mjs <major|minor|patch>
  *
@@ -60,7 +60,7 @@ function extractReleaseNotes(version) {
 }
 
 // Main flow
-console.log("\n=== CodeDive Release ===\n");
+console.log("\n=== StoryOf Release ===\n");
 
 // 1. Check for uncommitted changes
 console.log("Checking working directory...");
@@ -117,9 +117,9 @@ console.log();
 // 5. Create GitHub Release (auto-creates tag)
 console.log("Creating GitHub Release...");
 const releaseNotes = extractReleaseNotes(version);
-writeFileSync("/tmp/codedive-release-notes.md", releaseNotes);
+writeFileSync("/tmp/storyof-release-notes.md", releaseNotes);
 run(
-	`gh release create v${version} --title "v${version}" --notes-file /tmp/codedive-release-notes.md`
+	`gh release create v${version} --title "v${version}" --notes-file /tmp/storyof-release-notes.md`
 );
 console.log();
 
