@@ -10,12 +10,13 @@ on:
 
 jobs:
   e2e-install:
-    name: Test Global Installation
+    name: Install / Node ${{ matrix.node-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        # Node 22 (LTS), 23, 24 (LTS), 25 (current)
+        node-version: [22, 23, 24, 25]
         os: [ubuntu-latest, macos-latest]
-        node-version: [20, 24]
 
     steps:
       - name: Checkout code
@@ -56,8 +57,11 @@ jobs:
         run: npm uninstall -g codedive
 
   e2e-cli:
-    name: Test CLI Commands
-    runs-on: ubuntu-latest
+    name: CLI Commands / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

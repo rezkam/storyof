@@ -25,16 +25,6 @@ jobs:
       - name: Check TypeScript compilation
         run: npx tsc --noEmit
 
-      - name: Check for TODOs in code
-        run: |
-          echo "Checking for TODO/FIXME comments..."
-          if grep -r "TODO\|FIXME" src/ --exclude-dir=node_modules; then
-            echo "⚠️  Found TODO/FIXME comments (informational only)"
-          else
-            echo "✅ No TODO/FIXME comments found"
-          fi
-        continue-on-error: true
-
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -79,11 +69,3 @@ jobs:
           npm pack --dry-run
           SIZE=$(npm pack --dry-run 2>&1 | grep "package size:" | awk '{print $3}')
           echo "📦 Package size: $SIZE"
-          
-          # Convert to KB for comparison (strip units)
-          SIZE_NUM=$(echo $SIZE | sed 's/[^0-9.]//g')
-          if (( $(echo "$SIZE_NUM > 100" | bc -l) )); then
-            echo "⚠️  Package is larger than 100 kB"
-          else
-            echo "✅ Package size is acceptable"
-          fi
