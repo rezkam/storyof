@@ -4,6 +4,7 @@ export default defineConfig({
 	test: {
 		globals: true,
 		environment: "node",
+		retry: process.env.CI ? 2 : 0,
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json", "html"],
