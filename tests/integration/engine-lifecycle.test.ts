@@ -1466,44 +1466,4 @@ describe("Engine lifecycle (real server)", () => {
 		});
 	});
 
-	// ─── Read-only mode ──────────────────────────────────────────────
-
-	describe("read-only mode (allowEdits)", () => {
-		it("defaults to read-only (allowEdits=false)", async () => {
-			await startEngine();
-			const state = getState();
-			expect(state.allowEdits).toBe(false);
-		});
-
-		it("allowEdits=true is exposed in state", async () => {
-			const { factory } = mockSessionFactory();
-			const result = await start({
-				cwd: tempDir,
-				depth: "medium",
-				model: "test-model",
-				sessionFactory: factory,
-				skipPrompt: true,
-				allowEdits: true,
-			});
-			port = parseInt(new URL(result.url).port);
-			token = result.token;
-
-			const state = getState();
-			expect(state.allowEdits).toBe(true);
-		});
-
-		it("allowEdits=false is the default even when not specified", async () => {
-			const { factory } = mockSessionFactory();
-			const result = await start({
-				cwd: tempDir,
-				sessionFactory: factory,
-				skipPrompt: true,
-				// allowEdits not specified
-			});
-			port = parseInt(new URL(result.url).port);
-			token = result.token;
-
-			expect(getState().allowEdits).toBe(false);
-		});
-	});
 });

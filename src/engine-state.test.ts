@@ -402,8 +402,7 @@ describe("EngineStateMachine", () => {
 
 			// Should contain agent_start, doc_ready
 			expect(history.some((e) => {
-				const ev = e.event as any;
-				return ev?.type === "agent_start";
+				return (e.event as { type?: string })?.type === "agent_start";
 			})).toBe(true);
 			expect(history.some((e) => e.type === "doc_ready")).toBe(true);
 		});
@@ -495,7 +494,7 @@ describe("EngineStateMachine", () => {
 			expect(engine.snapshot().isStreaming).toBe(false);
 
 			const endEvent = engine.broadcasts.filter(
-				(e) => e.type === "rpc_event" && (e.event as any)?.type === "agent_end",
+				(e) => e.type === "rpc_event" && (e.event as { type?: string })?.type === "agent_end",
 			);
 			expect(endEvent.length).toBeGreaterThan(0);
 		});
@@ -722,7 +721,7 @@ describe("EngineStateMachine", () => {
 
 			// Should have ALL events, including those during disconnect
 			const agentEndEvents = history.filter(
-				(e) => e.type === "rpc_event" && (e.event as any)?.type === "agent_end",
+				(e) => e.type === "rpc_event" && (e.event as { type?: string })?.type === "agent_end",
 			);
 			expect(agentEndEvents.length).toBe(2); // both agent_end events
 		});
@@ -796,12 +795,12 @@ describe("EngineStateMachine", () => {
 
 			// agent_start should come before doc_ready
 			const startIdx = types.findIndex(
-				(t, i) => t === "rpc_event" && (engine.eventHistory[i].event as any)?.type === "agent_start",
+				(t, i) => t === "rpc_event" && (engine.eventHistory[i].event as { type?: string })?.type === "agent_start",
 			);
 			const docIdx = types.indexOf("doc_ready");
 			let endIdx = -1;
 			for (let i = types.length - 1; i >= 0; i--) {
-				if (types[i] === "rpc_event" && (engine.eventHistory[i].event as any)?.type === "agent_end") {
+				if (types[i] === "rpc_event" && (engine.eventHistory[i].event as { type?: string })?.type === "agent_end") {
 					endIdx = i;
 					break;
 				}

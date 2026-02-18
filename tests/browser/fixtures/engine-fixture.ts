@@ -58,7 +58,6 @@ type TestFixtures = {
 // ═══════════════════════════════════════════════════════════════════════
 
 async function startEngine(opts?: {
-	allowEdits?: boolean;
 	model?: string;
 	depth?: "shallow" | "medium" | "deep";
 }): Promise<EngineContext> {
@@ -72,7 +71,6 @@ async function startEngine(opts?: {
 		model: opts?.model ?? "claude-sonnet-4-5",
 		sessionFactory: factory,
 		skipPrompt: true,
-		...(opts?.allowEdits !== undefined ? { allowEdits: opts.allowEdits } : {}),
 	});
 
 	const port = parseInt(new URL(result.url).port);
@@ -153,26 +151,22 @@ export type { Page };
  *     });
  *   });
  *
- * For non-default options (e.g. allowEdits):
- *   const ctx = withEngine({ allowEdits: true });
- *
  * The object returned by withEngine() is a live reference: its port/token/
  * session properties are undefined until beforeAll resolves, then populated.
  */
 export function withEngine(opts?: {
-	allowEdits?: boolean;
 	model?: string;
 	depth?: "shallow" | "medium" | "deep";
 }): EngineContext {
-	// Mutable box — fields are populated in beforeAll
+	// Mutable box — fields are populated in beforeAll.
 	const ctx = {} as EngineContext;
 
-	base.beforeAll(async () => {
+	test.beforeAll(async () => {
 		const result = await startEngine(opts);
 		Object.assign(ctx, result);
 	});
 
-	base.afterAll(async () => {
+	test.afterAll(async () => {
 		await stopEngine(ctx.tempDir);
 	});
 
@@ -184,20 +178,20 @@ export function withEngine(opts?: {
  * Use when each test needs a clean slate (no shared engine state).
  */
 export function withFreshEngine(opts?: {
-	allowEdits?: boolean;
 	model?: string;
 	depth?: "shallow" | "medium" | "deep";
 }): EngineContext {
 	const ctx = {} as EngineContext;
 
-	base.beforeEach(async () => {
+	test.beforeEach(async () => {
 		const result = await startEngine(opts);
 		Object.assign(ctx, result);
 	});
 
-	base.afterEach(async () => {
+	test.afterEach(async () => {
 		await stopEngine(ctx.tempDir);
 	});
+
 
 	return ctx;
 }
@@ -210,11 +204,10 @@ export function withFreshEngine(opts?: {
  * Create a test fixture that starts an engine with specific options.
  *
  * Usage:
- *   const test = engineWith({ allowEdits: true });
- *   test("edit mode test", async ({ page, engine }) => { ... });
+ *   const test = engineWith({ model: "test-model" });
+ *   test("custom model test", async ({ page, engine }) => { ... });
  */
 export function engineWith(opts: {
-	allowEdits?: boolean;
 	model?: string;
 	depth?: "shallow" | "medium" | "deep";
 }) {

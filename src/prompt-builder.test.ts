@@ -97,6 +97,12 @@ describe("buildExplorePrompt", () => {
 		});
 	});
 
+	it("falls back to medium depth guide for unknown depth values", () => {
+		const out = buildExplorePrompt(TARGET, "", "ultra-deep", SESSION_ID);
+		// Unknown depth → falls back to medium guide text
+		expect(out).toContain("Cover each major module");
+	});
+
 	// ── Mermaid instructions ──────────────────────────────────────────
 
 	it("always includes mermaid diagram rules", () => {

@@ -25,7 +25,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import {
-	test, expect, withEngine, type Page,
+	test, expect, type Page,
 } from "./fixtures/engine-fixture.js";
 import {
 	start,
@@ -78,6 +78,22 @@ function createMockSession() {
 		},
 		get state() {
 			return { messages: this._messages };
+		},
+		get model() {
+			return { id: "test-model", provider: "test" };
+		},
+		getSessionStats() {
+			return {
+				sessionFile: undefined as string | undefined,
+				sessionId: "mock-session",
+				userMessages: 0,
+				assistantMessages: 0,
+				toolCalls: 0,
+				toolResults: 0,
+				totalMessages: 0,
+				tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+				cost: 0,
+			};
 		},
 		_emit(event: AgentSessionEvent) {
 			for (const fn of subscribers) fn(event);
@@ -311,8 +327,29 @@ async function httpGet(url: string): Promise<{ status: number; body: string }> {
 
 // serial: tests share engine state — each step builds on the previous
 test.describe.serial("full user journey: explore → document → chat → reconnect", () => {
-	// worker-scoped: all serial steps share the same engine instance
-	const { port, token, session, tempDir } = withEngine();
+	let port: number;
+	let token: string;
+	let session: ReturnType<typeof createMockSession>;
+	let tempDir: string;
+
+	test.beforeAll(async () => {
+		tempDir = makeTempDir();
+		session = createMockSession();
+		const factory: SessionFactory = async () => session as unknown as AgentSession;
+		const result = await start({
+			cwd: tempDir,
+			sessionFactory: factory,
+			skipPrompt: true,
+		});
+		port = parseInt(new URL(result.url).port);
+		token = result.token;
+	});
+
+	test.afterAll(async () => {
+		reset();
+		await new Promise((r) => setTimeout(r, 50));
+		try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+	});
 
 	test("browser connects and sees auth screen", async ({ page }) => {
 		await page.goto(`http://localhost:${port}/`);
@@ -339,8 +376,8 @@ test.describe.serial("full user journey: explore → document → chat → recon
 		await page.goto(`http://localhost:${port}/`);
 		await authenticate(page, token);
 
-		// Model name displayed
-		await expect(page.locator("#statModel")).toContainText("claude-sonnet-4-5");
+		// Model name displayed (mock session returns "test-model")
+		await expect(page.locator("#statModel")).toContainText("test-model");
 
 		// Read-only badge visible (default mode)
 		await expect(page.locator("#statReadOnly")).toBeVisible();
@@ -510,13 +547,12 @@ test.describe.serial("full user journey: explore → document → chat → recon
 		expect(data.targetPath).toBe(tempDir);
 	});
 
-	test("/state endpoint includes allowEdits", async () => {
+	test("/state endpoint returns running state", async () => {
 		const state = await httpGet(`http://localhost:${port}/state?token=${token}`);
 		expect(state.status).toBe(200);
 		const data = JSON.parse(state.body);
-		expect(data.allowEdits).toBe(false);
 		expect(data.running).toBe(true);
-		expect(data.model).toBe("claude-sonnet-4-5");
+		expect(data.model).toBe("test-model");
 	});
 
 	test("/status rejects invalid token", async () => {
@@ -531,10 +567,10 @@ test.describe.serial("full user journey: explore → document → chat → recon
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// E2E Journey 2: Read-only mode vs edit mode
+// E2E Journey 2: Read-only mode (always on)
 // ═══════════════════════════════════════════════════════════════════════
 
-test.describe("read-only vs edit mode", () => {
+test.describe("read-only mode", () => {
 	let tempDir: string;
 
 	test.afterEach(async () => {
@@ -545,7 +581,7 @@ test.describe("read-only vs edit mode", () => {
 		} catch {}
 	});
 
-	test("default mode shows read-only badge and correct state", async ({ page }) => {
+	test("shows read-only badge and correct state", async ({ page }) => {
 		tempDir = makeTempDir();
 		const session = createMockSession();
 		const factory: SessionFactory = async () => session as unknown as AgentSession;
@@ -560,39 +596,9 @@ test.describe("read-only vs edit mode", () => {
 		await page.goto(`http://localhost:${port}/`);
 		await authenticate(page, result.token);
 
-		// Badge visible
+		// Badge always visible — agent is always read-only
 		await expect(page.locator("#statReadOnly")).toBeVisible();
 		await expect(page.locator("#statReadOnly")).toHaveText("(read-only)");
-
-		// State endpoint confirms
-		const state = await httpGet(`http://localhost:${port}/state?token=${result.token}`);
-		const data = JSON.parse(state.body);
-		expect(data.allowEdits).toBe(false);
-	});
-
-	test("edit mode hides read-only badge", async ({ page }) => {
-		tempDir = makeTempDir();
-		const session = createMockSession();
-		const factory: SessionFactory = async () => session as unknown as AgentSession;
-
-		const result = await start({
-			cwd: tempDir,
-			sessionFactory: factory,
-			skipPrompt: true,
-			allowEdits: true,
-		});
-		const port = parseInt(new URL(result.url).port);
-
-		await page.goto(`http://localhost:${port}/`);
-		await authenticate(page, result.token);
-
-		// Badge hidden
-		await expect(page.locator("#statReadOnly")).toBeHidden();
-
-		// State endpoint confirms
-		const state = await httpGet(`http://localhost:${port}/state?token=${result.token}`);
-		const data = JSON.parse(state.body);
-		expect(data.allowEdits).toBe(true);
 	});
 });
 
@@ -601,15 +607,26 @@ test.describe("read-only vs edit mode", () => {
 // ═══════════════════════════════════════════════════════════════════════
 
 test.describe("concurrent browser tabs", () => {
-	// worker-scoped engine; setup runs in a separate beforeAll after withEngine() registers
-	const ctx = withEngine();
+	const ctx = {} as { port: number; token: string; session: ReturnType<typeof createMockSession>; tempDir: string };
 
 	test.beforeAll(async () => {
+		ctx.tempDir = makeTempDir();
+		ctx.session = createMockSession();
+		const factory: SessionFactory = async () => ctx.session as unknown as AgentSession;
+		const result = await start({ cwd: ctx.tempDir, sessionFactory: factory, skipPrompt: true });
+		ctx.port = parseInt(new URL(result.url).port);
+		ctx.token = result.token;
 		// Additional state: simulate exploration + one chat exchange
 		simulateExploration(ctx.session);
 		simulateDocumentWrite(ctx.session, ctx.tempDir);
 		await waitFor(() => !!getState().htmlPath, 10_000);
 		simulateChatResponse(ctx.session, "What is this project?", "It's an Express application for managing users.");
+	});
+
+	test.afterAll(async () => {
+		reset();
+		await new Promise((r) => setTimeout(r, 50));
+		try { fs.rmSync(ctx.tempDir, { recursive: true, force: true }); } catch {}
 	});
 
 	test("two tabs see the same chat history", async ({ browser }) => {
@@ -681,10 +698,18 @@ test.describe("concurrent browser tabs", () => {
 // ═══════════════════════════════════════════════════════════════════════
 
 test.describe("chat history pagination", () => {
-	// worker-scoped engine; messages seeded in a separate beforeAll
-	const { port, token, session } = withEngine();
+	let port: number;
+	let token: string;
+	let session: ReturnType<typeof createMockSession>;
+	let tempDir: string;
 
-	test.beforeAll(() => {
+	test.beforeAll(async () => {
+		tempDir = makeTempDir();
+		session = createMockSession();
+		const factory: SessionFactory = async () => session as unknown as AgentSession;
+		const result = await start({ cwd: tempDir, sessionFactory: factory, skipPrompt: true });
+		port = parseInt(new URL(result.url).port);
+		token = result.token;
 		// Set up initial exploration
 		simulateExploration(session);
 		addAssistantMessage(session, "Document written.");
@@ -695,6 +720,12 @@ test.describe("chat history pagination", () => {
 			addUserMessage(session, `Question ${i}: What about module_${i}?`);
 			addAssistantMessage(session, `Module ${i} handles feature_${i}. It uses pattern_${i} for processing.`);
 		}
+	});
+
+	test.afterAll(async () => {
+		reset();
+		await new Promise((r) => setTimeout(r, 50));
+		try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
 	});
 
 	test("initial connect shows only recent 20 messages", async ({ page }) => {
@@ -794,8 +825,25 @@ test.describe("chat history pagination", () => {
 // ═══════════════════════════════════════════════════════════════════════
 
 test.describe("agent streaming and status", () => {
-	// worker-scoped engine shared across all streaming tests
-	const { port, token, session } = withEngine();
+	let port: number;
+	let token: string;
+	let session: ReturnType<typeof createMockSession>;
+	let tempDir: string;
+
+	test.beforeAll(async () => {
+		tempDir = makeTempDir();
+		session = createMockSession();
+		const factory: SessionFactory = async () => session as unknown as AgentSession;
+		const result = await start({ cwd: tempDir, sessionFactory: factory, skipPrompt: true });
+		port = parseInt(new URL(result.url).port);
+		token = result.token;
+	});
+
+	test.afterAll(async () => {
+		reset();
+		await new Promise((r) => setTimeout(r, 50));
+		try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+	});
 
 	test("streaming response shows in real-time, then finalizes", async ({ page }) => {
 		await page.goto(`http://localhost:${port}/`);
@@ -882,13 +930,24 @@ test.describe("agent streaming and status", () => {
 // ═══════════════════════════════════════════════════════════════════════
 
 test.describe("reconnect during active streaming", () => {
-	// worker-scoped engine; initial state seeded in beforeAll
-	const ctx = withEngine();
+	const ctx = {} as { port: number; token: string; session: ReturnType<typeof createMockSession>; tempDir: string };
 
-	test.beforeAll(() => {
+	test.beforeAll(async () => {
+		ctx.tempDir = makeTempDir();
+		ctx.session = createMockSession();
+		const factory: SessionFactory = async () => ctx.session as unknown as AgentSession;
+		const result = await start({ cwd: ctx.tempDir, sessionFactory: factory, skipPrompt: true });
+		ctx.port = parseInt(new URL(result.url).port);
+		ctx.token = result.token;
 		simulateExploration(ctx.session);
 		addAssistantMessage(ctx.session, "Document written.");
 		handleEvent(evAgentEnd());
+	});
+
+	test.afterAll(async () => {
+		reset();
+		await new Promise((r) => setTimeout(r, 50));
+		try { fs.rmSync(ctx.tempDir, { recursive: true, force: true }); } catch {}
 	});
 
 	test("disconnect during stream, complete stream, reconnect → message appears", async ({ page }) => {

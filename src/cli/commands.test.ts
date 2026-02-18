@@ -27,6 +27,10 @@ vi.mock("../engine.js", () => ({
 	}),
 	resume: vi.fn(),
 	stopExternal: vi.fn(),
+	getState: vi.fn(() => ({
+		phase: "running",
+		model: "claude-sonnet-4-5",
+	})),
 }));
 
 // ── Mock auth ────────────────────────────────────────────────────────

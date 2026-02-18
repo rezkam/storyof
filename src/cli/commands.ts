@@ -8,16 +8,16 @@ import { Spinner } from "./spinner.js";
 import { AuthenticationError, NotFoundError, ValidationError } from "./errors.js";
 import { checkAuth } from "../auth-check.js";
 import { createAuthStorage } from "../auth.js";
-import { start, resume, stopExternal } from "../engine.js";
+import { start, resume, stopExternal, getState } from "../engine.js";
 import { loadLocalSessions, formatSessionLabel } from "../session-meta.js";
 import { APP_CMD } from "../constants.js";
+import { CostTracker } from "../cost-tracker.js";
 
 export interface StartOptions {
 	prompt?: string;
 	depth: "shallow" | "medium" | "deep";
 	paths: string[];
 	model: string;
-	allowEdits?: boolean;
 	cwd: string;
 }
 
@@ -71,7 +71,6 @@ export class CommandHandler {
 						depth: options.depth,
 						scope: options.paths.length > 0 ? options.paths.join(",") : undefined,
 						model: options.model,
-						allowEdits: options.allowEdits,
 						onReady: () => {
 							agentReady = true;
 							tryResolve();
@@ -101,7 +100,7 @@ export class CommandHandler {
 		await this.waitForShutdown();
 	}
 
-	async handleResume(cwd: string, options?: { allowEdits?: boolean }): Promise<void> {
+	async handleResume(cwd: string): Promise<void> {
 		const storage = createAuthStorage();
 		const authCheck = checkAuth(storage);
 
@@ -182,7 +181,6 @@ export class CommandHandler {
 					resume({
 						meta: selectedSession,
 						cwd,
-						allowEdits: options?.allowEdits,
 						onReady: () => {
 							agentReady = true;
 							tryResolve();
@@ -209,6 +207,10 @@ export class CommandHandler {
 			this.logger.keyValue("Resumed", formatSessionLabel(selectedSession));
 			this.logger.keyValue("URL", url);
 			this.logger.keyValue("Token", token);
+			const resumeState = getState();
+			if (resumeState.model) {
+				this.logger.keyValue("Model", resumeState.model);
+			}
 			this.logger.newline();
 			this.logger.hint("Open the URL in your browser and paste the token to connect.");
 			this.logger.hint("Press Ctrl+C to stop.");
@@ -242,7 +244,13 @@ export class CommandHandler {
 		this.logger.newline();
 		this.logger.keyValue("URL", url);
 		this.logger.keyValue("Token", token);
-		this.logger.keyValue("Model", options.model);
+		// Show the actual resolved model — always use engine state since S.model
+		// is set during createSession() before the first prompt is sent.
+		// Don't gate on phase: the agent may have already crashed by the time
+		// we get here (fast auth error), resetting phase to "starting".
+		const state = getState();
+		const resolvedModel = state.model || options.model || "(auto-selecting)";
+		this.logger.keyValue("Model", resolvedModel);
 		this.logger.keyValue("Target", options.cwd);
 		this.logger.keyValue("Depth", options.depth);
 		if (options.prompt) {
@@ -319,6 +327,26 @@ export class CommandHandler {
 		return new Promise<void>((resolve) => {
 			const cleanup = () => {
 				this.logger.newline();
+
+				// Show session summary before exiting
+				const state = getState();
+				if (state.costTotals && (state.costTotals.usage.input > 0 || state.costTotals.usage.output > 0)) {
+					const { usage, cost, requestCount } = state.costTotals;
+					const line = CostTracker.formatStatusLine(
+						usage, cost, state.model || "unknown", state.provider || undefined,
+					);
+					this.logger.section("Session Summary");
+					this.logger.keyValue("Usage", line);
+					this.logger.keyValue("Requests", String(requestCount));
+					if (state.sessionId) {
+						this.logger.keyValue("Resume", `${APP_CMD} resume ${state.sessionId}`);
+					}
+					this.logger.newline();
+				} else if (state.sessionId) {
+					this.logger.keyValue("Resume", `${APP_CMD} resume ${state.sessionId}`);
+					this.logger.newline();
+				}
+
 				this.logger.info("Shutting down...");
 				resolve();
 				process.exit(0);

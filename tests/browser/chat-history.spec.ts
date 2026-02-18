@@ -449,6 +449,11 @@ test.describe("reconnect edge cases", () => {
 	let localToken: string;
 	let localSession: ReturnType<typeof createMockSession>;
 
+	test.beforeEach(() => {
+		// Reset any engine left over from the file-level beforeAll or a previous test
+		reset();
+	});
+
 	test.afterEach(async () => {
 		reset();
 		await new Promise((r) => setTimeout(r, 100));

@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Chat history recovery** — server sends last 20 messages on WebSocket connect; full history loads on scroll-to-top
-- **Read-only mode by default** — agent cannot modify, create, or delete files unless `--dangerously-allow-edits` is passed
+- **Read-only mode** — agent cannot modify, create, or delete files in the codebase (only writes story documents via the write tool)
 - **Safe bash** — 26 categories of destructive commands blocked (rm, mv, sed -i, git commit, npm install, redirects, etc.)
 - **Read-only badge** — `(read-only)` indicator in browser status bar with tooltip
 - **OAuth browser login** — `storyof auth login` prompts to press Enter, then opens login page in your default browser

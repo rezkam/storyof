@@ -2,14 +2,11 @@
  * Browser integration tests for read-only mode and chat history edge cases.
  *
  * Tests:
- *   - Read-only badge shows by default (allowEdits=false)
- *   - Read-only badge hidden when allowEdits=true
- *   - Chat history survives server restart simulation (stop → start)
- *   - Chat messages arrive in correct order after multiple reconnects
+ *   - Read-only badge is always visible (agent is always read-only)
  *   - Empty session has no chat bubbles
- *   - Rapid reconnect doesn't duplicate messages
- *   - Very long messages are preserved correctly
- *   - Chat input is functional after reconnect
+ *   - Exploration-only session shows no chat bubbles
+ *   - Scroll-to-top loads full history
+ *   - New messages after scroll-to-top appear at bottom
  */
 
 import { test, expect } from "@playwright/test";
@@ -59,7 +56,7 @@ test.describe("read-only mode indicator", () => {
 		} catch {}
 	});
 
-	test("shows read-only badge by default", async ({ page }) => {
+	test("shows read-only badge", async ({ page }) => {
 		tempDir = makeTempDir();
 		session = createMockSession();
 		const factory: SessionFactory = async () => session as unknown as AgentSession;
@@ -68,7 +65,6 @@ test.describe("read-only mode indicator", () => {
 			cwd: tempDir,
 			sessionFactory: factory,
 			skipPrompt: true,
-			// allowEdits not set → defaults to false
 		});
 		port = parseInt(new URL(result.url).port);
 		token = result.token;
@@ -76,32 +72,10 @@ test.describe("read-only mode indicator", () => {
 		await page.goto(`http://localhost:${port}/`);
 		await authenticate(page, token);
 
-		// The read-only badge should be visible
+		// The read-only badge should always be visible
 		const badge = page.locator("#statReadOnly");
 		await expect(badge).toBeVisible();
 		await expect(badge).toHaveText("(read-only)");
-	});
-
-	test("hides read-only badge when allowEdits is true", async ({ page }) => {
-		tempDir = makeTempDir();
-		session = createMockSession();
-		const factory: SessionFactory = async () => session as unknown as AgentSession;
-
-		const result = await start({
-			cwd: tempDir,
-			sessionFactory: factory,
-			skipPrompt: true,
-			allowEdits: true,
-		});
-		port = parseInt(new URL(result.url).port);
-		token = result.token;
-
-		await page.goto(`http://localhost:${port}/`);
-		await authenticate(page, token);
-
-		// The read-only badge should be hidden
-		const badge = page.locator("#statReadOnly");
-		await expect(badge).toBeHidden();
 	});
 
 	test("read-only badge has correct tooltip", async ({ page }) => {
@@ -121,7 +95,7 @@ test.describe("read-only mode indicator", () => {
 		await authenticate(page, token);
 
 		const badge = page.locator("#statReadOnly");
-		await expect(badge).toHaveAttribute("title", /dangerously-allow-edits/);
+		await expect(badge).toHaveAttribute("title", /read-only/i);
 	});
 });
 

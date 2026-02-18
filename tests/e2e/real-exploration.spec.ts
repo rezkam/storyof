@@ -482,7 +482,6 @@ for (const repo of TEST_REPOS) {
 			expect(resp.status).toBe(200);
 			const data = await resp.json();
 			expect(data.running).toBe(true);
-			expect(data.allowEdits).toBe(false);
 			expect(data.depth).toBe("shallow");
 		});
 

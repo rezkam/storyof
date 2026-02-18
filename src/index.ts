@@ -16,6 +16,8 @@
 
 export { start, resume, stop, stopAll, stopExternal, chat, abort, getState } from "./engine.js";
 export type { StartOptions, ResumeOptions } from "./engine.js";
+export { Engine } from "./engine-class.js";
+export type { EngineOptions } from "./engine-class.js";
 export { createAuthStorage } from "./auth.js";
 export { CostTracker, type TokenUsage, type CostEntry } from "./cost-tracker.js";
 export {

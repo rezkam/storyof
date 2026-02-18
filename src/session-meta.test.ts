@@ -93,6 +93,20 @@ describe("session-meta", () => {
 			expect(sessions[0].id).toBe("real-session");
 		});
 
+		it("skips sessions with corrupt meta.json", () => {
+			// Write a broken JSON file
+			const dir = sessionDir(tempDir, "corrupt-session");
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(path.join(dir, "meta.json"), "{ invalid json");
+
+			// Also save a valid session
+			saveMeta({ ...baseMeta, id: "valid-session", targetPath: tempDir });
+
+			const sessions = loadLocalSessions(tempDir);
+			expect(sessions).toHaveLength(1);
+			expect(sessions[0].id).toBe("valid-session");
+		});
+
 		it("fills in missing id and targetPath from directory structure", () => {
 			// Write a meta.json without id/targetPath fields
 			const dir = sessionDir(tempDir, "inferred-id");
@@ -190,6 +204,12 @@ describe("session-meta", () => {
 		it("shows ? for missing timestamp", () => {
 			const label = formatSessionLabel(meta({ timestamp: 0 }));
 			expect(label).toContain("?");
+		});
+
+		it("defaults to 'medium' depth when depth is empty string", () => {
+			// Simulate a session saved before depth was required
+			const label = formatSessionLabel({ ...meta(), depth: "" });
+			expect(label).toContain("medium");
 		});
 	});
 });

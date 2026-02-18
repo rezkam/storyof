@@ -5,7 +5,7 @@
  * and execute non-destructive bash commands. Any command that would create, modify,
  * or delete files is rejected with a clear error message.
  *
- * Bypass with --dangerously-allow-edits.
+ * The write tool is available separately for creating story/document files.
  */
 
 import { createBashTool } from "@mariozechner/pi-coding-agent";
@@ -115,9 +115,9 @@ export function createSafeBashTool(cwd: string) {
 			if (violation) {
 				throw new Error(
 					`Command blocked (read-only mode): ${violation}\n\n` +
-					`StoryOf runs in read-only mode by default to protect your codebase.\n` +
-					`The agent can read files and run analysis commands, but cannot modify files.\n\n` +
-					`To enable file editing, restart with: storyof --dangerously-allow-edits`
+					`StoryOf runs in read-only mode to protect your codebase.\n` +
+					`The agent can read files and run analysis commands, but cannot modify files.\n` +
+					`Use the write tool to create story/document files.`
 				);
 			}
 			return context;

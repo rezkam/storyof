@@ -139,9 +139,9 @@ describe("CLI options and commands", () => {
 			expect(r.exitCode).toBe(0);
 		});
 
-		it("defaults to claude-sonnet-4-5", () => {
+		it("auto-selects if omitted", () => {
 			const r = run(["--help"], { tempHome });
-			expect(r.stdout).toContain("claude-sonnet-4-5");
+			expect(r.stdout).toContain("auto-selects best available");
 		});
 	});
 
@@ -158,39 +158,6 @@ describe("CLI options and commands", () => {
 		it("accepts multiple paths", () => {
 			const r = run(["--path", "/src", "--path", "/lib", "--help"], { tempHome });
 			expect(r.exitCode).toBe(0);
-		});
-	});
-
-	// ═══════════════════════════════════════════════════════════════
-	// --dangerously-allow-edits option
-	// ═══════════════════════════════════════════════════════════════
-
-	describe("--dangerously-allow-edits", () => {
-		it("is listed in --help output", () => {
-			const r = run(["--help"], { tempHome });
-			expect(r.exitCode).toBe(0);
-			expect(r.stdout).toContain("--dangerously-allow-edits");
-		});
-
-		it("is accepted on the main command", () => {
-			// It will fail due to no auth, but should NOT fail due to unknown option
-			const r = run(["--dangerously-allow-edits"], { tempHome });
-			// exit code 1 = auth error (expected), not option parse error
-			expect(r.stderr).not.toContain("unknown option");
-			expect(r.stderr).not.toContain("error: unknown option");
-		});
-
-		it("is accepted on the resume command", () => {
-			const r = run(["resume", "--dangerously-allow-edits"], { tempHome });
-			// No sessions / no auth is fine — should not be "unknown option"
-			expect(r.stderr).not.toContain("unknown option");
-			expect(r.stderr).not.toContain("error: unknown option");
-		});
-
-		it("resume --help shows the flag", () => {
-			const r = run(["resume", "--help"], { tempHome });
-			expect(r.exitCode).toBe(0);
-			expect(r.stdout).toContain("--dangerously-allow-edits");
 		});
 	});
 

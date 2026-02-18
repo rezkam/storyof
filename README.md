@@ -119,7 +119,6 @@ Everything that isn't a flag is your prompt. No quotes needed.
 | `--path` | Subdirectory to scope the exploration (repeatable) |
 | `--depth` | `shallow` · `medium` (default) · `deep` |
 | `--model` | LLM model to use (default: `claude-sonnet-4-5`) |
-| `--dangerously-allow-edits` | Allow the agent to edit files (disabled by default) |
 | `--help` | Show usage examples |
 
 ### Full Exploration (no prompt)
@@ -322,15 +321,6 @@ This means:
 - Inline script execution (python -c, node -e) is blocked
 
 The only file the agent writes is its own architecture document in the `.storyof/` session directory.
-
-If you want the agent to make changes to your codebase (e.g., apply suggested refactors), you can opt in:
-
-```bash
-storyof --dangerously-allow-edits
-storyof resume --dangerously-allow-edits
-```
-
-This enables the full tool set: read, bash (unrestricted), edit, and write.
 
 ## Security
 

@@ -84,8 +84,7 @@ program
 			.default("medium"),
 	)
 	.option("--path <dir>", "Subdirectory to focus on (repeatable)", (val, prev: string[]) => [...prev, val], [])
-	.option("--model <name>", "LLM model to use", "claude-sonnet-4-5")
-	.option("--dangerously-allow-edits", "Allow the agent to edit files (disabled by default for safety)")
+	.option("--model <name>", "LLM model to use (auto-selects best available if omitted)")
 	.argument("[prompt...]", "Optional topic or question to focus exploration")
 	.addHelpText(
 		"after",
@@ -103,7 +102,6 @@ Enable tab completion:
 				depth: options.depth as "shallow" | "medium" | "deep",
 				paths: options.path,
 				model: options.model,
-				allowEdits: !!options.dangerouslyAllowEdits,
 				cwd: process.cwd(),
 			});
 		} catch (error) {
@@ -115,10 +113,9 @@ Enable tab completion:
 program
 	.command("resume")
 	.description("Resume a previous session")
-	.option("--dangerously-allow-edits", "Allow the agent to edit files (disabled by default for safety)")
-	.action(async (options) => {
+	.action(async () => {
 		try {
-			await commandHandler.handleResume(process.cwd(), { allowEdits: !!options.dangerouslyAllowEdits });
+			await commandHandler.handleResume(process.cwd());
 		} catch (error) {
 			handleError(error);
 		}

@@ -17,8 +17,8 @@ import {
 	type AgentSessionEvent,
 	AuthStorage,
 	createAgentSession,
-	createCodingTools,
 	createReadOnlyTools,
+	createWriteTool,
 	DefaultResourceLoader,
 	ModelRegistry,
 	SessionManager,
@@ -50,6 +50,28 @@ import { type SessionMeta, saveMeta, sessionDir } from "./session-meta.js";
 import { buildFixPrompt, validateHtml } from "./validation.js";
 import { type WsClient, wsAccept, wsBroadcast } from "./ws.js";
 import { type EnginePhase } from "./engine-state.js";
+
+// ═══════════════════════════════════════════════════════════════════════
+// System prompt — single constant, always read-only
+// ═══════════════════════════════════════════════════════════════════════
+
+export const SYSTEM_PROMPT = `You are StoryOf, a codebase architecture explorer. You read codebases, understand their structure, and generate comprehensive architecture documentation with diagrams. You also answer questions about code you've explored.
+
+You have the following tools: read, grep, find, ls, bash (safe/read-only), and write.
+
+IMPORTANT: You are running in READ-ONLY mode for the codebase. You must NOT:
+- Edit, create, delete, or modify any files in the codebase
+- Run bash commands that write, move, copy, or delete files
+- Use output redirects (>, >>), sed -i, or any in-place editing
+- Run package managers (npm install, pip install, etc.)
+- Run build commands (make, cmake, cargo build, etc.)
+- Execute inline scripts (python -c, node -e) that could modify files
+
+Use the write tool (not bash/cat/heredoc) to create story/document files. All other writes will be blocked.
+
+You CAN: read files, grep, find, ls, cat, head, tail, wc, git log, git diff, git show, and other read-only analysis commands.
+
+When responding to questions, use well-structured markdown: headings (##), bullet lists, fenced code blocks with language tags, tables, bold/italic for emphasis. Keep responses clear and organized.`;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Public state type — discriminated union keyed on phase
@@ -84,7 +106,6 @@ export type EnginePublicState =
 			model: string;
 			provider: string;
 			isSubscription: boolean;
-			allowEdits: boolean;
 			depth: string;
 			focus: string;
 			scope: string;
@@ -169,8 +190,6 @@ interface EngineState {
 	provider: string;
 	// Whether current model is using OAuth/subscription
 	isSubscription: boolean;
-	// Whether file editing is allowed (--dangerously-allow-edits)
-	allowEdits: boolean;
 	// Pending tool write tracking
 	pendingWritePaths: Map<string, string>;
 	pendingToolTimers: Map<string, number>;
@@ -228,7 +247,6 @@ function createState(): EngineState {
 		modelRegistry: null,
 		provider: "",
 		isSubscription: false,
-		allowEdits: false,
 		pendingWritePaths: new Map(),
 		pendingToolTimers: new Map(),
 		piSessionManager: null,
@@ -302,26 +320,8 @@ async function createSession(targetPath: string, sessionManager?: SessionManager
 			});
 			return { skills: filtered, diagnostics: base.diagnostics };
 		},
-		// Custom system prompt — StoryOf branding
-		systemPrompt: S.allowEdits
-			? `You are StoryOf, a codebase architecture explorer. You read codebases, understand their structure, and generate comprehensive architecture documentation with diagrams. You also answer questions about code you've explored.
-
-When responding to questions, use well-structured markdown: headings (##), bullet lists, fenced code blocks with language tags, tables, bold/italic for emphasis. Keep responses clear and organized.`
-			: `You are StoryOf, a codebase architecture explorer. You read codebases, understand their structure, and generate comprehensive architecture documentation with diagrams. You also answer questions about code you've explored.
-
-IMPORTANT: You are running in READ-ONLY mode. You must NOT:
-- Edit, create, delete, or modify any files in the codebase
-- Run bash commands that write, move, copy, or delete files
-- Use output redirects (>, >>), sed -i, or any in-place editing
-- Run package managers (npm install, pip install, etc.)
-- Run build commands (make, cmake, cargo build, etc.)
-- Execute inline scripts (python -c, node -e) that could modify files
-
-The ONLY file you may write to is the architecture document file (via the write tool provided). All other writes will be blocked.
-
-You CAN: read files, grep, find, ls, cat, head, tail, wc, git log, git diff, git show, and other analysis commands.
-
-When responding to questions, use well-structured markdown: headings (##), bullet lists, fenced code blocks with language tags, tables, bold/italic for emphasis. Keep responses clear and organized.`,
+		// Single system prompt — agent is always read-only for codebase, write-only for story file
+		systemPrompt: SYSTEM_PROMPT,
 		agentsFilesOverride: () => ({ agentsFiles: [] }), // Don't load AGENTS.md / CLAUDE.md
 	});
 	await resourceLoader.reload();
@@ -329,11 +329,43 @@ When responding to questions, use well-structured markdown: headings (##), bulle
 	const smgr = sessionManager ?? SessionManager.create(targetPath, path.join(targetPath, LOCAL_DIR_NAME, S.sessionId));
 	S.piSessionManager = smgr;
 
-	// In read-only mode (default): read-only tools + safe bash (blocks file writes)
-	// In edit mode (--dangerously-allow-edits): full coding tools (read, bash, edit, write)
-	const tools = S.allowEdits
-		? createCodingTools(targetPath)
-		: [...createReadOnlyTools(targetPath), createSafeBashTool(targetPath)];
+	// Read-only exploration tools + safe bash (blocks file writes) + write (for story document only)
+	const tools = [...createReadOnlyTools(targetPath), createSafeBashTool(targetPath), createWriteTool(targetPath)];
+
+	// Resolve model: user-specified → best available → error
+	const available = sortModelsNewestFirst(modelRegistry.getAvailable());
+
+	if (available.length === 0) {
+		throw new AuthenticationError(
+			`No models available — no API credentials configured.\n\n` +
+			`  Set an API key:\n    storyof auth set anthropic sk-ant-xxx\n\n` +
+			`  Or login with OAuth:\n    storyof auth login anthropic`,
+		);
+	}
+
+	let requestedModel = S.model
+		? available.find((m) => m.id === S.model)
+		: undefined;
+
+	if (S.model && !requestedModel) {
+		// User requested a specific model but it's not available
+		const best = available[0];
+		S.logger.log(`Model "${S.model}" not available — using ${best.id} (${best.provider})`);
+		process.stderr.write(`⚠️  Model "${S.model}" not available, using ${best.id} (${best.provider})\n`);
+		process.stderr.write(`   Change with: storyof --model <name>\n`);
+		process.stderr.write(`   Available: ${available.map((m) => m.id).slice(0, 5).join(", ")}${available.length > 5 ? "…" : ""}\n\n`);
+		requestedModel = best;
+	}
+
+	if (!requestedModel) {
+		// No model specified — auto-select the best available
+		requestedModel = available[0];
+		S.logger.log(`Auto-selected model: ${requestedModel.id} (${requestedModel.provider})`);
+	}
+
+	// Update state to reflect the actual model we'll use
+	S.model = requestedModel.id;
+	S.provider = requestedModel.provider;
 
 	const { session, modelFallbackMessage } = await createAgentSession({
 		cwd: targetPath,
@@ -344,6 +376,7 @@ When responding to questions, use well-structured markdown: headings (##), bulle
 		sessionManager: smgr,
 		resourceLoader,
 		tools,
+		...(requestedModel ? { model: requestedModel } : {}),
 	});
 
 	if (modelFallbackMessage) {
@@ -407,7 +440,53 @@ export function handleEvent(event: AgentSessionEvent) {
 
 	if (type === "agent_end") {
 		S.isStreaming = false;
-		S.logger.log("── turn end ──");
+
+		// Check for errors in the agent_end event — the agent emits error
+		// messages when API calls fail (auth errors, network errors, etc.)
+		const endMessages = (event as any).messages as any[] | undefined;
+		const errorMsg = endMessages?.find(
+			(m: any) => m.errorMessage || m.stopReason === "error",
+		);
+
+		if (errorMsg?.errorMessage) {
+			const errStr = String(errorMsg.errorMessage);
+			S.logger.log(`── turn end (error: ${errStr}) ──`);
+
+			// Surface the error to the browser
+			broadcast({
+				type: "agent_error",
+				error: errStr,
+			});
+
+			// Classify errors: transient (retry) vs permanent (show instructions)
+			const isTransient = /429|500|502|503|504|529|overloaded|rate.?limit|resource.?exhausted|service.?unavailable|timeout|ECONNRESET|ETIMEDOUT|fetch failed/i.test(errStr);
+			const isAuth = /401|403|Unauthorized|Forbidden|invalid.?api.?key|authentication|expired|No API key|credential|login|re-authenticate/i.test(errStr);
+
+			if (isAuth) {
+				// Auth/credential failure — permanent, show fix instructions
+				const provider = S.provider || "anthropic";
+				const fixMsg = `Authentication failed: ${errStr}\n\nFix:\n  storyof auth login ${provider}\n  storyof auth set ${provider} <key>`;
+				process.stderr.write(`\n⚠️  ${fixMsg}\n\n`);
+				broadcast({
+					type: "agent_exit",
+					error: fixMsg,
+					crashCount: S.crashCount,
+					willRestart: false,
+					restartIn: null,
+				});
+			} else if (isTransient) {
+				// Transient error (rate limit, server error) — retry via crash recovery
+				process.stderr.write(`\n⚠️  Agent error (will retry): ${errStr}\n`);
+				handleCrash(errStr);
+			} else {
+				// Unknown error — retry via crash recovery
+				process.stderr.write(`\n⚠️  Agent error (will retry): ${errStr}\n`);
+				handleCrash(errStr);
+			}
+		} else {
+			S.logger.log("── turn end ──");
+		}
+
 		broadcast({ type: "rpc_event", event: { type: "agent_end" } });
 		broadcastStatus();
 		return;
@@ -886,7 +965,6 @@ document.addEventListener("mousedown",function(){parent.postMessage({type:"dd-se
 							model: S.model,
 							provider: S.provider,
 							isSubscription: S.isSubscription,
-							allowEdits: S.allowEdits,
 							depth: S.depth,
 							usage: {
 								input: totals.usage.input,
@@ -1042,8 +1120,6 @@ export interface StartOptions {
 	depth?: string;
 	model?: string;
 	scope?: string;
-	/** Allow the agent to edit/write/delete files (default: false, read-only). */
-	allowEdits?: boolean;
 	/** Called once when the agent is confirmed running (first agent_start event). */
 	onReady?: () => void;
 	/** Override session factory (for testing without real API keys). */
@@ -1061,8 +1137,6 @@ export interface StartOptions {
 export interface ResumeOptions {
 	cwd: string;
 	meta: SessionMeta;
-	/** Allow the agent to edit/write/delete files (default: false, read-only). */
-	allowEdits?: boolean;
 	/** Called once when the agent is confirmed running (first agent_start event). */
 	onReady?: () => void;
 	/** Override auth storage (for programmatic/embedded use). */
@@ -1087,12 +1161,11 @@ export async function start(opts: StartOptions): Promise<{ url: string; token: s
 	S.scope = opts.scope || "";
 	S.focus = opts.prompt || "";
 	S.depth = opts.depth || "medium";
-	S.model = opts.model || "claude-sonnet-4-5";
+	S.model = opts.model || "";  // resolved in createSession from available models
 	S.htmlPath = null;
 	S.crashCount = 0;
 	S.isResumedSession = false;
 	S.intentionalStop = false;
-	S.allowEdits = opts.allowEdits ?? false;
 	S.eventHistory = [];
 	S.readyFired = false;
 	S.onReady = opts.onReady ?? null;
@@ -1122,6 +1195,13 @@ export async function start(opts: StartOptions): Promise<{ url: string; token: s
 		signal.throwIfAborted(); // bail if stop() was called during session creation
 		S.unsubscribe = S.session.subscribe(handleEvent);
 		S.agentReady = true;
+
+		// Capture the resolved model from the session (may differ from CLI input)
+		const sessionModel = S.session.model;
+		if (sessionModel) {
+			S.model = sessionModel.id || S.model;
+			S.provider = sessionModel.provider || S.provider;
+		}
 
 		// Send the exploration prompt
 		const prompt = buildExplorePrompt(targetPath, S.focus, S.depth, sessionId, S.scope || undefined);
@@ -1198,12 +1278,11 @@ export async function resume(opts: ResumeOptions): Promise<{ url: string; token:
 	S.focus = meta.prompt || "";
 	S.scope = meta.scope || "";
 	S.depth = meta.depth || "medium";
-	S.model = meta.model || "claude-sonnet-4-5";
+	S.model = meta.model || "";  // resolved in createSession from available models
 	S.htmlPath = meta.htmlPath || null;
 	S.crashCount = 0;
 	S.isResumedSession = true;
 	S.intentionalStop = false;
-	S.allowEdits = opts.allowEdits ?? false;
 	S.eventHistory = [];
 	S.readyFired = false;
 	S.onReady = opts.onReady ?? null;
@@ -1512,7 +1591,6 @@ export function getState() {
 		model: S.model,
 		provider: S.provider,
 		isSubscription: S.isSubscription,
-		allowEdits: S.allowEdits,
 		depth: S.depth,
 		focus: S.focus,
 		scope: S.scope,
@@ -1535,4 +1613,21 @@ export function reset(): void {
 	stopAll();
 	clearTemplateCache();
 	Object.assign(S, createState());
+}
+
+/**
+ * Returns an object that calls reset() when disposed via `await using`.
+ *
+ * Enables safe, automatic cleanup in tests:
+ *
+ *   await using _ = engineDisposable();
+ *   await start({ ... });
+ *   // reset() is called automatically when the block exits, even on throw
+ */
+export function engineDisposable(): AsyncDisposable {
+	return {
+		async [Symbol.asyncDispose]() {
+			reset();
+		},
+	};
 }
