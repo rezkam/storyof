@@ -1,6 +1,6 @@
 {
   "name": "storyof",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "type": "module",
   "description": "Explore any codebase — generate rich architecture docs with diagrams, then chat with an AI that already read the code",
   "license": "Apache-2.0",

@@ -105,12 +105,12 @@ describe("Engine class", () => {
 
 		it("start() passes through non-bound options", async () => {
 			const engine = new Engine({ cwd: "/test" });
-			await engine.start({ targetPath: "/project", model: "my-model", prompt: "hello" });
+			await engine.start({ model: "my-model", prompt: "hello", depth: "deep" });
 
 			const startCall = vi.mocked(engineModule.start).mock.calls[0][0];
-			expect(startCall.targetPath).toBe("/project");
 			expect(startCall.model).toBe("my-model");
 			expect(startCall.prompt).toBe("hello");
+			expect(startCall.depth).toBe("deep");
 		});
 	});
 

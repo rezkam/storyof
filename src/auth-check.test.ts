@@ -1,12 +1,13 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { checkAuth } from "./auth-check.js";
 import type { AuthCheckResult } from "./auth-check.js";
+import type { AuthStorage } from "@mariozechner/pi-coding-agent";
 
 /** Minimal AuthStorage stub — returns null unless a provider is explicitly seeded. */
-function makeStorage(seeded: Record<string, object | null> = {}) {
+function makeStorage(seeded: Record<string, object | null> = {}): AuthStorage {
 	return {
 		get: (provider: string) => seeded[provider] ?? null,
-	};
+	} as AuthStorage;
 }
 
 /** Temporarily set env vars; restores them in the returned cleanup function. */
