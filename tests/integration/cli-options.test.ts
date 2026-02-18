@@ -443,6 +443,7 @@ describe("Completion script correctness", () => {
 			expect(bashScript).toContain('"bash zsh fish"');
 		});
 
+		// eslint-disable-next-line vitest/expect-expect -- assertion via execSync throw
 		it("is valid bash syntax", () => {
 			// Write to temp file and check syntax
 			const scriptPath = path.join(tempHome, "completion.bash");

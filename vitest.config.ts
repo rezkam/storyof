@@ -12,6 +12,14 @@ export default defineConfig({
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json", "html"],
+			// Thresholds set ~5% below measured baseline (63%/58%/57%/63%).
+			// Raise incrementally as coverage improves.
+			thresholds: {
+				statements: 58,
+				branches: 53,
+				functions: 52,
+				lines: 58,
+			},
 			exclude: [
 				"node_modules/**",
 				"dist/**",

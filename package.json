@@ -39,6 +39,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "lint": "ESLINT_USE_FLAT_CONFIG=true eslint src tests",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=true eslint --fix src tests",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "test": "vitest --run",

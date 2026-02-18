@@ -157,6 +157,7 @@ describe("Startup readiness", () => {
 				if (tMatch) token = tMatch[1];
 			});
 
+			// eslint-disable-next-line @typescript-eslint/no-misused-promises
 			setTimeout(async () => {
 				if (port) {
 					// Without token → 403

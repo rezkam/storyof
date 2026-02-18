@@ -25,6 +25,9 @@ jobs:
       - name: Check TypeScript compilation
         run: npx tsc --noEmit
 
+      - name: Lint (ESLint)
+        run: npm run lint
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest

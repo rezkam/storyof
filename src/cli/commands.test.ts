@@ -136,6 +136,8 @@ describe("Readiness gate", () => {
 
 		// Spinner should have stopped with success
 		expect(spinnerCalls).toContain("spinner:stop:Agent is running");
+
+		await handlePromise; // drain — won't hang because waitForShutdown is mocked
 	});
 
 	it("includes all connection details only after readiness", async () => {
@@ -172,6 +174,8 @@ describe("Readiness gate", () => {
 		expect(kvLines.some((l) => l.includes("Depth") && l.includes("deep"))).toBe(true);
 		expect(kvLines.some((l) => l.includes("Topic") && l.includes("auth system"))).toBe(true);
 		expect(kvLines.some((l) => l.includes("Scope") && l.includes("/src"))).toBe(true);
+
+		await handlePromise; // drain — won't hang because waitForShutdown is mocked
 	});
 
 	it("spinner lifecycle: start → phase → stop", async () => {
@@ -199,6 +203,8 @@ describe("Readiness gate", () => {
 		expect(startIdx).toBeGreaterThanOrEqual(0);
 		expect(phaseIdx).toBeGreaterThan(startIdx);
 		expect(stopIdx).toBeGreaterThan(phaseIdx);
+
+		await handlePromise; // drain — won't hang because waitForShutdown is mocked
 	});
 
 	it("cleans up spinner on engine failure", async () => {
@@ -251,5 +257,7 @@ describe("Readiness gate", () => {
 		expect(logOutput.some((l) => l.includes("race-tok"))).toBe(true);
 		expect(logOutput.some((l) => l.includes("localhost:5555"))).toBe(true);
 		expect(spinnerCalls.some((c) => c.includes("stop"))).toBe(true);
+
+		await handlePromise; // drain — won't hang because waitForShutdown is mocked
 	});
 });

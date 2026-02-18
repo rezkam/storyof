@@ -25,7 +25,9 @@ import {
 	SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 
+import { AuthenticationError } from "./cli/errors.js";
 import { createAuthStorage } from "./auth.js";
+import { EngineAssetNotFoundError, EngineNotRunningError, ModelNotFoundError } from "./engine-errors.js";
 import { createSafeBashTool } from "./safe-bash.js";
 import {
 	APP_NAME,
@@ -488,7 +490,7 @@ export function handleEvent(event: AgentSessionEvent) {
 						S.htmlPath = htmlPath;
 						updateMeta();
 						broadcast({ type: "doc_ready", path: S.htmlPath });
-						setTimeout(() => runValidationLoop(), 1000);
+						setTimeout(() => { void runValidationLoop(); }, 1000);
 					})
 					.catch((err) => {
 						S.logger.log(`Render error: ${err}`);
@@ -582,7 +584,7 @@ async function runValidationLoop() {
 		S.validationAttempt = 0;
 		if (S.validationQueued) {
 			S.validationQueued = false;
-			setTimeout(() => runValidationLoop(), 1000);
+			setTimeout(() => { void runValidationLoop(); }, 1000);
 		}
 		return;
 	}
@@ -608,7 +610,7 @@ async function runValidationLoop() {
 	S.validationInProgress = false;
 	if (S.validationQueued) {
 		S.validationQueued = false;
-		setTimeout(() => runValidationLoop(), 1000);
+		setTimeout(() => { void runValidationLoop(); }, 1000);
 	}
 }
 
@@ -648,7 +650,7 @@ function getUiPath(): string {
 	for (const p of candidates) {
 		if (fs.existsSync(p)) return p;
 	}
-	throw new Error("ui.html not found");
+	throw new EngineAssetNotFoundError("ui.html");
 }
 
 function startServer(): Promise<number> {
@@ -1071,7 +1073,7 @@ export async function start(opts: StartOptions): Promise<{ url: string; token: s
 		S.logger.log(`Failed to create session: ${errStr}`);
 		// Provide helpful auth error message
 		if (errStr.includes("No API key") || errStr.includes("No model") || errStr.includes("Authentication")) {
-			throw new Error(
+			throw new AuthenticationError(
 				`No API key configured.\n\n  Set an API key:\n    storyof auth set anthropic sk-ant-xxx\n\n  Or login with OAuth:\n    storyof auth login anthropic\n\n  Or set an environment variable:\n    export STORYOF_ANTHROPIC_API_KEY=sk-ant-xxx`,
 			);
 		}
@@ -1211,7 +1213,7 @@ const RECENT_CHAT_LIMIT = 20;
  * Send a chat message from the user.
  */
 export async function chat(text: string): Promise<void> {
-	if (!S.session) throw new Error("No active session");
+	if (!S.session) throw new EngineNotRunningError("send chat");
 
 	const formatted =
 		text +
@@ -1234,12 +1236,12 @@ export async function chat(text: string): Promise<void> {
  */
 export async function changeModel(modelId: string, provider: string): Promise<void> {
 	if (!S.session || !S.modelRegistry) {
-		throw new Error("No active session");
+		throw new EngineNotRunningError("change model");
 	}
 
 	const model = S.modelRegistry.find(provider, modelId);
 	if (!model) {
-		throw new Error(`Model not found: ${provider}/${modelId}`);
+		throw new ModelNotFoundError(provider, modelId);
 	}
 
 	await S.session.setModel(model);
@@ -1367,18 +1369,20 @@ export function handleCrash(error: string) {
 			maxAttempts: MAX_CRASH_RESTARTS,
 			restartIn: backoffMs,
 		});
-		const timer = setTimeout(async () => {
-			if (!S.server || S.session) return;
-			S.logger.log(`Auto-restart attempt ${S.crashCount}/${MAX_CRASH_RESTARTS}`);
-			try {
-				S.session = await S.sessionFactory(S.targetPath);
-				S.unsubscribe = S.session.subscribe(handleEvent);
-				S.agentReady = true;
-				updateMeta();
-			} catch (err) {
-				S.logger.log(`Auto-restart failed: ${err}`);
-				handleCrash(String(err));
-			}
+		const timer = setTimeout(() => {
+			void (async () => {
+				if (!S.server || S.session) return;
+				S.logger.log(`Auto-restart attempt ${S.crashCount}/${MAX_CRASH_RESTARTS}`);
+				try {
+					S.session = await S.sessionFactory(S.targetPath);
+					S.unsubscribe = S.session.subscribe(handleEvent);
+					S.agentReady = true;
+					updateMeta();
+				} catch (err) {
+					S.logger.log(`Auto-restart failed: ${err}`);
+					handleCrash(String(err));
+				}
+			})();
 		}, backoffMs);
 		S.restartTimers.push(timer);
 	}
