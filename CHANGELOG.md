@@ -5,6 +5,19 @@ All notable changes to StoryOf will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-02-18
+
+### Fixed
+
+- **OAuth login provider aliases** — `storyof auth login antigravity` now maps to the canonical `google-antigravity` OAuth provider instead of failing with `Unknown OAuth provider`; `google` maps to `google-gemini-cli` as well
+- **Credential visibility and cleanup for OAuth-only providers** — `auth list` now shows stored OAuth credentials beyond API-key providers, and `auth logout` removes canonical + alias IDs together to avoid stale entries
+- **Auth detection for OAuth-only providers** — startup auth checks now recognize stored `google-antigravity`, `google-gemini-cli`, and `openai-codex` credentials
+
+### Added
+
+- **OAuth provider mapping tests** — unit tests validate CLI provider aliases and canonical OAuth IDs so unsupported/renamed IDs fail fast in CI
+- **Auth storage coverage tests** — tests ensure `checkAuth()` and `auth list` behavior includes OAuth-only providers
+
 ## [0.2.1] - 2026-02-18
 
 ### Added
