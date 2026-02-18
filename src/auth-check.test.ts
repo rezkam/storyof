@@ -51,7 +51,7 @@ describe("checkAuth", () => {
 	afterEach(() => {
 		// Restore the real environment exactly
 		process.env = savedEnv;
-		vi.clearAllMocks();
+		// vi.clearAllMocks() removed — handled globally by vitest clearMocks + restoreMocks config
 	});
 
 	describe("storage credentials", () => {

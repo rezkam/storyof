@@ -6,7 +6,7 @@
  * then verify output ordering.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Track calls ──────────────────────────────────────────────────────
 const spinnerCalls: string[] = [];
@@ -87,11 +87,13 @@ describe("Readiness gate", () => {
 		spinnerCalls.length = 0;
 		logOutput.length = 0;
 		handler = new CommandHandler(createTrackedLogger());
+		// waitForShutdown waits for SIGINT/SIGTERM — mock it so tests can await
+		// handlePromise without hanging. The readiness-gate logic under test runs
+		// before waitForShutdown is reached, so this doesn't hide any assertions.
+		vi.spyOn(handler as any, "waitForShutdown").mockResolvedValue(undefined);
 	});
 
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
+	// vi.restoreAllMocks() removed — handled globally by vitest restoreMocks config
 
 	it("shows nothing until onReady fires", async () => {
 		// Start handleStart — it will block waiting for both start() and onReady
