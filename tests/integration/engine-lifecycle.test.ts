@@ -498,9 +498,12 @@ describe("Engine lifecycle (real server)", () => {
 			const ws = await connectWs(port, token);
 			ws.send({ type: "prompt", text: "explain auth" });
 
-			// Give it a moment to process
+			// Give the engine a moment to dispatch the prompt to the session.
+			// The mock session's prompt() is a no-op, so no agent_start fires,
+			// but the engine must remain running and not crash.
 			await new Promise((r) => setTimeout(r, 100));
-			// The chat function was called (engine processes it)
+
+			expect(getState().running).toBe(true);
 			ws.close();
 		});
 
@@ -595,10 +598,12 @@ describe("Engine lifecycle (real server)", () => {
 
 			stop();
 
-			// Connect a client — should receive history including stop
-			// Note: server is still up (stopAll wasn't called)
-			// Actually stop() only stops the agent, not the server
-			// So we can still connect
+			// stop() broadcasts { type: "agent_stopped" } into S.eventHistory.
+			// Verify it was recorded — a late-joining WS client would receive it on replay.
+			const state = getState();
+			expect(state.eventHistoryLength).toBeGreaterThan(0);
+			expect(state.running).toBe(false);
+			expect(state.intentionalStop).toBe(true);
 		});
 	});
 
@@ -1016,8 +1021,9 @@ describe("Engine lifecycle (real server)", () => {
 			await startEngine();
 			stop();
 
-			// Should not throw
-			await abort();
+			// abort() after stop() should resolve cleanly — S.session is null so it returns early.
+			await expect(abort()).resolves.toBeUndefined();
+			expect(getState().running).toBe(false);
 		});
 
 		it("double stop is safe", async () => {
@@ -1446,24 +1452,25 @@ describe("Engine lifecycle (real server)", () => {
 			}
 
 			const ws = await connectWs(port, token);
+			try {
+				// Get the initial chat_history (limited to RECENT_CHAT_LIMIT=20)
+				const initial = await ws.waitForMessage((m) => m.type === "chat_history", 2000);
+				expect(initial.messages.length).toBeLessThanOrEqual(20);
+				expect(initial.isFullHistory).toBe(false);
 
-			// Get the initial chat_history (limited to RECENT_CHAT_LIMIT=20)
-			const initial = await ws.waitForMessage((m) => m.type === "chat_history", 2000);
-			expect(initial.messages.length).toBeLessThanOrEqual(20);
-			expect(initial.isFullHistory).toBe(false);
+				// Clear received messages to isolate the next response
+				ws.messages.length = 0;
 
-			// Clear received messages to isolate the next response
-			ws.messages.length = 0;
+				// Request full history
+				ws.send({ type: "load_history" });
 
-			// Request full history
-			ws.send({ type: "load_history" });
-
-			const full = await ws.waitForMessage((m) => m.type === "chat_history" && m.isFullHistory === true, 3000);
-			expect(full.messages).toHaveLength(30); // 15 Q + 15 A
-			expect(full.messages[0]).toEqual({ role: "user", text: "Question 0" });
-			expect(full.messages[29]).toEqual({ role: "assistant", text: "Answer 14" });
-
-			ws.close();
+				const full = await ws.waitForMessage((m) => m.type === "chat_history" && m.isFullHistory === true, 3000);
+				expect(full.messages).toHaveLength(30); // 15 Q + 15 A
+				expect(full.messages[0]).toEqual({ role: "user", text: "Question 0" });
+				expect(full.messages[29]).toEqual({ role: "assistant", text: "Answer 14" });
+			} finally {
+				ws.close();
+			}
 		});
 
 		it("multiple concurrent clients each get chat history independently", async () => {
@@ -1483,14 +1490,16 @@ describe("Engine lifecycle (real server)", () => {
 				connectWs(port, token),
 			]);
 
-			const history1 = await ws1.waitForMessage((m) => m.type === "chat_history", 2000);
-			const history2 = await ws2.waitForMessage((m) => m.type === "chat_history", 2000);
+			try {
+				const history1 = await ws1.waitForMessage((m) => m.type === "chat_history", 2000);
+				const history2 = await ws2.waitForMessage((m) => m.type === "chat_history", 2000);
 
-			expect(history1.messages).toEqual(history2.messages);
-			expect(history1.messages).toHaveLength(2);
-
-			ws1.close();
-			ws2.close();
+				expect(history1.messages).toEqual(history2.messages);
+				expect(history1.messages).toHaveLength(2);
+			} finally {
+				ws1.close();
+				ws2.close();
+			}
 		});
 
 		it("chat history is preserved across agent turns", async () => {
@@ -1515,13 +1524,15 @@ describe("Engine lifecycle (real server)", () => {
 
 			// Connect a fresh client — should see chat history
 			const ws = await connectWs(port, token);
-			const chatHistory = await ws.waitForMessage((m) => m.type === "chat_history", 2000);
+			try {
+				const chatHistory = await ws.waitForMessage((m) => m.type === "chat_history", 2000);
 
-			expect(chatHistory.messages).toHaveLength(2);
-			expect(chatHistory.messages[0].text).toBe("How does auth work?");
-			expect(chatHistory.messages[1].text).toBe("Auth uses OAuth2.");
-
-			ws.close();
+				expect(chatHistory.messages).toHaveLength(2);
+				expect(chatHistory.messages[0].text).toBe("How does auth work?");
+				expect(chatHistory.messages[1].text).toBe("Auth uses OAuth2.");
+			} finally {
+				ws.close();
+			}
 		});
 	});
 

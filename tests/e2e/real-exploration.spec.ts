@@ -746,6 +746,8 @@ for (const repo of TEST_REPOS) {
 				await killProcess(cliProc);
 				cliProc = null;
 			}
+			// Verify the process was fully cleaned up
+			expect(cliProc).toBeNull();
 		});
 
 		test("real ~/.storyof/auth.json is unchanged", () => {
