@@ -49,6 +49,68 @@ import { sortModelsNewestFirst } from "./model-sort.js";
 import { type SessionMeta, saveMeta, sessionDir } from "./session-meta.js";
 import { buildFixPrompt, validateHtml } from "./validation.js";
 import { type WsClient, wsAccept, wsBroadcast } from "./ws.js";
+import { type EnginePhase } from "./engine-state.js";
+
+// ═══════════════════════════════════════════════════════════════════════
+// Public state type — discriminated union keyed on phase
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Common fields present in every phase. */
+interface EnginePublicBase {
+	phase: EnginePhase;
+	crashCount: number;
+	clientCount: number;
+	eventHistoryLength: number;
+	costTotals: ReturnType<CostTracker["getTotals"]>;
+}
+
+/** Phase-specific public state. TypeScript narrows to the correct variant
+ *  after a `state.phase === "running"` check, making field access safe. */
+export type EnginePublicState =
+	| (EnginePublicBase & { phase: "idle" })
+	| (EnginePublicBase & {
+			phase: "starting";
+			targetPath: string;
+			model: string;
+			provider: string;
+	  })
+	| (EnginePublicBase & {
+			phase: "running" | "streaming" | "waiting";
+			port: number;
+			secret: string;
+			targetPath: string;
+			sessionId: string;
+			htmlPath: string | null;
+			model: string;
+			provider: string;
+			isSubscription: boolean;
+			allowEdits: boolean;
+			depth: string;
+			focus: string;
+			scope: string;
+			agentReady: boolean;
+			streaming: boolean;
+			validationInProgress: boolean;
+			validationAttempt: number;
+			validationQueued: boolean;
+			intentionalStop: boolean;
+	  })
+	| (EnginePublicBase & {
+			phase: "restarting" | "failed";
+			targetPath: string;
+			model: string;
+	  })
+	| (EnginePublicBase & { phase: "stopped" });
+
+/** Derive the current phase from internal state flags. */
+function derivePhase(s: EngineState): EnginePhase {
+	if (!s.server) return "idle";
+	if (s.intentionalStop && !s.session) return "stopped";
+	if (!s.agentReady && !s.session) return "starting";
+	if (s.isStreaming) return "streaming";
+	if (s.agentReady) return "running";
+	return "starting";
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // State
@@ -82,6 +144,12 @@ interface EngineState {
 	lastInitialPrompt: string | null;
 	isResumedSession: boolean;
 	restartTimers: ReturnType<typeof setTimeout>[];
+	/** Backoff base delay in ms (injectable for tests, default 2000). */
+	backoffBase: number;
+	/** Backoff maximum delay in ms (injectable for tests, default 15000). */
+	backoffMax: number;
+	/** AbortController for the current startup operation — aborted by stop(). */
+	startupController: AbortController | null;
 	// Session factory (injectable for testing)
 	sessionFactory: SessionFactory;
 	// Activity tracking
@@ -146,6 +214,9 @@ function createState(): EngineState {
 		lastInitialPrompt: null,
 		isResumedSession: false,
 		restartTimers: [],
+		backoffBase: 2000,
+		backoffMax: 15000,
+		startupController: null,
 		sessionFactory: createSession,
 		lastActivityTs: 0,
 		heartbeatTimer: null,
@@ -981,6 +1052,10 @@ export interface StartOptions {
 	skipPrompt?: boolean;
 	/** Override auth storage (for programmatic/embedded use). */
 	authStorage?: AuthStorage;
+	/** Crash-restart backoff base in ms (default 2000; set low in tests for speed). */
+	backoffBase?: number;
+	/** Crash-restart backoff maximum in ms (default 15000; set low in tests for speed). */
+	backoffMax?: number;
 }
 
 export interface ResumeOptions {
@@ -1028,13 +1103,23 @@ export async function start(opts: StartOptions): Promise<{ url: string; token: s
 	fs.mkdirSync(sDir, { recursive: true });
 	S.logger.setPath(path.join(sDir, "agent.log"));
 
-	const port = await startServer();
-	writePidFile(opts.cwd);
+	// Create AbortController for this startup sequence — aborted by stop()
+	const startupController = new AbortController();
+	S.startupController = startupController;
+	const { signal } = startupController;
+
+	try {
+		const port = await startServer();
+		signal.throwIfAborted(); // bail immediately if stop() was called during server start
+		writePidFile(opts.cwd);
 
 	// Create in-process agent session
 	S.sessionFactory = opts.sessionFactory ?? createSession;
+	S.backoffBase = opts.backoffBase ?? 2000;
+	S.backoffMax = opts.backoffMax ?? 15000;
 	try {
 		S.session = await S.sessionFactory(targetPath);
+		signal.throwIfAborted(); // bail if stop() was called during session creation
 		S.unsubscribe = S.session.subscribe(handleEvent);
 		S.agentReady = true;
 
@@ -1080,8 +1165,18 @@ export async function start(opts: StartOptions): Promise<{ url: string; token: s
 		throw err;
 	}
 
-	const url = `http://localhost:${port}/`;
+	const url = `http://localhost:${S.port}/`;
 	return { url, token: S.secret };
+	} catch (err) {
+		// Clean cancellation via stop() — not a crash, not an error
+		if (err instanceof DOMException && err.name === "AbortError") {
+			S.logger.log("Startup cancelled by stop()");
+			return { url: `http://localhost:${S.port}/`, token: S.secret };
+		}
+		throw err;
+	} finally {
+		S.startupController = null;
+	}
 }
 
 /**
@@ -1281,6 +1376,8 @@ export async function abort(): Promise<void> {
  */
 export function stop(): void {
 	S.intentionalStop = true;
+	// Cancel any in-flight startup operation (startServer / sessionFactory awaits)
+	S.startupController?.abort(new DOMException("Engine stopped", "AbortError"));
 	for (const t of S.restartTimers) clearTimeout(t);
 	S.restartTimers = [];
 
@@ -1341,7 +1438,7 @@ export function stopAll(): void {
 export function handleCrash(error: string) {
 	S.crashCount++;
 	const canRestart = S.crashCount <= MAX_CRASH_RESTARTS && S.targetPath && S.server && !S.intentionalStop;
-	const backoffMs = Math.min(2000 * Math.pow(2, S.crashCount - 1), 15000);
+	const backoffMs = Math.min(S.backoffBase * Math.pow(2, S.crashCount - 1), S.backoffMax);
 
 	S.logger.log(`Crash #${S.crashCount}/${MAX_CRASH_RESTARTS} — ${canRestart ? `restarting in ${backoffMs}ms` : "giving up"}`);
 
@@ -1369,16 +1466,24 @@ export function handleCrash(error: string) {
 			maxAttempts: MAX_CRASH_RESTARTS,
 			restartIn: backoffMs,
 		});
+		const restartController = new AbortController();
+		S.startupController = restartController;
 		const timer = setTimeout(() => {
 			void (async () => {
-				if (!S.server || S.session) return;
+				if (!S.server || S.session || S.intentionalStop) return;
+				restartController.signal.throwIfAborted(); // stop() may have aborted during backoff wait
 				S.logger.log(`Auto-restart attempt ${S.crashCount}/${MAX_CRASH_RESTARTS}`);
 				try {
 					S.session = await S.sessionFactory(S.targetPath);
+					restartController.signal.throwIfAborted(); // stop() may have fired while creating session
 					S.unsubscribe = S.session.subscribe(handleEvent);
 					S.agentReady = true;
 					updateMeta();
 				} catch (err) {
+					if (err instanceof DOMException && err.name === "AbortError") {
+						S.logger.log("Auto-restart cancelled by stop()");
+						return;
+					}
 					S.logger.log(`Auto-restart failed: ${err}`);
 					handleCrash(String(err));
 				}
@@ -1389,8 +1494,13 @@ export function handleCrash(error: string) {
 }
 
 /** Get current state — full snapshot for testing and CLI display */
+/** Flat snapshot returned by getState() — all fields present in every phase.
+ *  Use the `phase` field to discriminate and understand which fields are
+ *  meaningful: e.g. `port` is only set when phase is "running"/"streaming"/"waiting".
+ *  See EnginePublicState for a future strictly-typed discriminated-union form. */
 export function getState() {
 	return {
+		phase: derivePhase(S),
 		running: !!S.session,
 		streaming: S.isStreaming,
 		agentReady: S.agentReady,
