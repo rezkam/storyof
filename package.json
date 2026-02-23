@@ -62,7 +62,7 @@
     "@mariozechner/pi-coding-agent": "0.52.9",
     "chalk": "^4.1.2",
     "commander": "^14.0.3",
-    "marked": "^15.0.0"
+    "marked": "^17.0.3"
   },
   "engines": {
     "node": ">=20.0.0"
